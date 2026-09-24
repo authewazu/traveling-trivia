@@ -1,0 +1,742 @@
+/* ==========================================================================
+   Trivia Stop — "departure board" placeholder aesthetic.
+   All colors/type live in :root tokens so the Figma pass can swap them.
+   Sizes use container units (cqw/cqh) of .app, a portrait frame that is
+   full-bleed on the 12.9" iPad Pro and letterboxed on a laptop.
+   ========================================================================== */
+
+:root {
+  --ink: #0b1426;
+  --ink-2: #121f38;
+  --ink-3: #1b2b4a;
+  --line: #2a3d63;
+  --paper: #f4f1e8;
+  --muted: #9fb0cf;
+  --amber: #ffb81c;
+  --amber-ink: #2a1d00;
+  --correct: #3ddc97;
+  --correct-ink: #04291a;
+  --wrong: #ff6b6b;
+  --wrong-ink: #3a0707;
+  /* Difficulty ombrés — Figma "IPD534 Street Interface" › Color schemes
+     (EASY/ombre, MEDIUM/ombre, HARD/ombre): 3 stops, top → bottom. */
+  --easy-1: #f0d11f;
+  --easy-2: #f59d21;
+  --easy-3: #ea7d1e;
+  --medium-1: #4be3d6;
+  --medium-2: #40c2d9;
+  --medium-3: #388cc8;
+  --hard-1: #c29fff;
+  --hard-2: #9992fd;
+  --hard-3: #726aea;
+  --ombre-easy: linear-gradient(180deg, var(--easy-1) 0%, var(--easy-2) 50%, var(--easy-3) 100%);
+  --ombre-medium: linear-gradient(180deg, var(--medium-1) 0%, var(--medium-2) 50%, var(--medium-3) 100%);
+  --ombre-hard: linear-gradient(180deg, var(--hard-1) 0%, var(--hard-2) 50%, var(--hard-3) 100%);
+  /* Chip accents on the dark background use each ombré's lightest stop. */
+  --easy: var(--easy-1);
+  --medium: var(--medium-1);
+  --hard: var(--hard-1);
+  --route-21: #36a3ff;
+  --route-42: #b38bff;
+
+  --font-display: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* Figma text styles "Bungee Shade 48" and "BBH Begarty 16" (family: BBH Hegarty) */
+  --font-title: 'Bungee Shade', 'Archivo', system-ui, sans-serif;
+  --font-body: 'BBH Hegarty', 'Archivo', system-ui, sans-serif;
+  --radius: 2.4cqw;
+  --pad: 4.5cqw;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #050a14;
+  color: var(--paper);
+  font-family: var(--font-display);
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cqw; }
+[hidden] { display: none !important; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Target device: 12.9" iPad Pro, portrait (1024×1366 CSS px; ~1024×1290
+   in Safari with its toolbars). Fills the screen edge to edge there;
+   letterboxes to a portrait column on a laptop. */
+.app {
+  position: relative;
+  width: min(100vw, 82dvh);
+  height: 100dvh;
+  container-type: size;
+  background:
+    radial-gradient(120% 60% at 50% -10%, #1a2c52 0%, transparent 60%),
+    var(--ink);
+  overflow: hidden;
+}
+
+/* Safe areas live on the screens (absolutely positioned children ignore the
+   parent's padding): status bar on top, Home indicator at the bottom when
+   launched from the iPad Home Screen. */
+.screen {
+  position: absolute;
+  inset: 0;
+  padding:
+    calc(var(--pad) + env(safe-area-inset-top))
+    calc(var(--pad) + env(safe-area-inset-right))
+    calc(var(--pad) + env(safe-area-inset-bottom))
+    calc(var(--pad) + env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 2.4cqh;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 2.2cqw;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 2.6cqw 6cqw;
+  font-size: 3.6cqw;
+  font-weight: 800;
+  font-stretch: 110%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqw;
+  transition: transform 0.12s ease;
+}
+.btn:active { transform: scale(0.97); }
+.btn svg { width: 1.2em; height: 1.2em; fill: currentColor; }
+.btn-primary { background: var(--amber); color: var(--amber-ink); box-shadow: 0 1cqw 0 #b07a00; }
+.btn-ghost { background: transparent; color: var(--paper); border: 0.4cqw solid var(--line); }
+
+/* ==========================================================================
+   IDLE
+   ========================================================================== */
+.stop-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2cqw;
+}
+.stop-sign {
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  font-weight: 800;
+  font-stretch: 115%;
+  font-size: 4.2cqw;
+}
+.stop-glyph {
+  display: grid; place-items: center;
+  width: 8cqw; height: 8cqw;
+  border-radius: 1.6cqw;
+  background: var(--paper);
+}
+.stop-glyph svg { width: 70%; height: 70%; fill: var(--ink); }
+.amp { color: var(--amber); }
+
+.departures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2cqw;
+}
+.departure {
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  padding: 2.2cqw 2.8cqw;
+  background: var(--ink-2);
+  border: 0.3cqw solid var(--line);
+  border-radius: var(--radius);
+}
+.departure-eta {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 4.4cqw;
+  color: var(--amber);
+}
+.departure-eta small { font-size: 0.55em; color: var(--muted); margin-left: 0.4em; }
+.departures-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  font-size: 2.6cqw;
+  color: var(--muted);
+  padding: 2cqw 2.8cqw;
+  border: 0.3cqw dashed var(--line);
+  border-radius: var(--radius);
+}
+
+.route-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 8cqw;
+  height: 6.4cqw;
+  padding: 0 1.4cqw;
+  border-radius: 1.2cqw;
+  font-weight: 900;
+  font-stretch: 120%;
+  font-size: 3.6cqw;
+  color: #fff;
+  background: var(--route-21);
+}
+.route-badge[data-route="42"] { background: var(--route-42); }
+
+/* The eyebrow and the play button each get equal auto margins above and
+   below, so the free height is split evenly: the eyebrow sits centered
+   between the bus times and the title, the button centered between the
+   tagline and the leaderboard. */
+.idle { gap: 2cqh; }
+.idle-eyebrow { margin-block: auto; text-align: center; }
+.idle-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2cqh;
+}
+.title {
+  margin: 0;
+  align-self: stretch;
+  text-align: center;
+  font-family: var(--font-title);
+  font-weight: 400; /* Bungee Shade ships one weight; avoid faux bold */
+  /* "TRAVELING" is ~7.2em wide in Bungee Shade: 11cqw keeps it inside the
+     side padding; height-capped so the idle screen fits Safari's viewport. */
+  font-size: min(11cqw, 8cqh);
+  line-height: 1;
+  text-transform: uppercase;
+}
+.title-line-1 { display: block; color: var(--paper); }
+.title-line-2 { display: block; color: var(--amber); }
+.tagline {
+  margin: 0;
+  align-self: center;
+  max-width: 86cqw; /* BBH Hegarty runs wide; keeps the description to 2 lines */
+  text-align: center;
+  text-wrap: balance;
+  font-family: var(--font-body);
+  font-size: 3.4cqw;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.btn-start {
+  align-self: center;
+  margin-block: auto;
+  font-size: min(5cqw, 3.8cqh);
+  padding: min(3.4cqw, 2.4cqh) 8cqw;
+  animation: breathe 2.4s ease-in-out infinite;
+}
+@keyframes breathe { 50% { transform: scale(1.04); } }
+
+/* ---------- Leaderboard ---------- */
+.board {
+  background: var(--ink-2);
+  border: 0.3cqw solid var(--line);
+  border-radius: calc(var(--radius) * 1.5);
+  padding: 2.4cqw 3.6cqw;
+}
+.board-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1cqw; }
+.board-head h2 { margin: 0; font-size: 3.4cqw; font-weight: 800; font-stretch: 110%; }
+.board-sub { font-size: 2.4cqw; color: var(--muted); }
+.board-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6cqw; }
+.board-row {
+  display: grid;
+  grid-template-columns: 6cqw 1fr auto;
+  align-items: center;
+  gap: 2cqw;
+  padding: 0.6cqw 2cqw;
+  border-radius: 1.4cqw;
+  font-size: 3cqw;
+}
+.board-row .rank { font-family: var(--font-mono); font-weight: 700; color: var(--muted); }
+.board-row .total { font-family: var(--font-mono); font-weight: 700; }
+.board-row.is-today { background: var(--ink-3); outline: 0.3cqw solid var(--amber); }
+.board-row.is-today .day::after {
+  content: 'TODAY';
+  margin-left: 1.6cqw;
+  padding: 0.3cqw 1.2cqw;
+  border-radius: 99px;
+  font-size: 0.6em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  background: var(--amber);
+  color: var(--amber-ink);
+  vertical-align: middle;
+}
+
+.sound-toggle {
+  position: absolute;
+  top: var(--pad);
+  right: var(--pad);
+  display: flex;
+  align-items: center;
+  gap: 1.2cqw;
+  padding: 1.4cqw 2.4cqw;
+  border-radius: 99px;
+  border: 0.3cqw solid var(--line);
+  background: var(--ink-2);
+  font-size: 2.4cqw;
+  font-weight: 700;
+}
+.sound-toggle svg { width: 3.4cqw; height: 3.4cqw; fill: currentColor; }
+.sound-toggle[aria-pressed="true"] .icon-off,
+.sound-toggle[aria-pressed="false"] .icon-on { display: none; }
+
+/* ==========================================================================
+   LOADING (between "Tap to play" and the first question)
+   ========================================================================== */
+.loading { justify-content: center; align-items: center; }
+/* The message is the only in-flow child, so it sits dead center; the bar
+   and disclaimer are pinned to the bottom without shifting it. */
+.loading-message {
+  margin: 0;
+  max-width: 80cqw;
+  text-align: center;
+  font-family: var(--font-body); /* BBH Hegarty: one weight, already heavy */
+  font-size: 48px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--easy-2); /* fallback if background-clip:text is unsupported */
+}
+/* Letters filled with the Easy ombré. The inline span + box-decoration-break
+   gives every wrapped line the full yellow→orange gradient. */
+.loading-message-text {
+  background: var(--ombre-easy);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.loading-bar,
+.disclaimer {
+  position: absolute;
+  left: calc(var(--pad) + env(safe-area-inset-left));
+  right: calc(var(--pad) + env(safe-area-inset-right));
+}
+.loading-bar {
+  bottom: calc(var(--pad) + env(safe-area-inset-bottom) + 7cqh);
+  height: 0.6cqw;
+  border-radius: 99px;
+  background: var(--ink-3);
+  overflow: hidden;
+}
+.loading-bar i { display: block; height: 100%; background: var(--amber); transform-origin: left; transform: scaleX(0); }
+@keyframes bar-fill { to { transform: scaleX(1); } }
+.disclaimer {
+  bottom: calc(var(--pad) + env(safe-area-inset-bottom));
+  margin: 0;
+  text-align: center;
+  font-size: 2.2cqw;
+  font-weight: 400;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+/* ==========================================================================
+   GAME
+   ========================================================================== */
+.game { gap: 2cqh; }
+
+.hud { display: flex; gap: 2.4cqw; }
+.bus-clock, .scorebox {
+  background: var(--ink-2);
+  border: 0.3cqw solid var(--line);
+  border-radius: var(--radius);
+  padding: 2cqw 3cqw;
+  display: grid;
+}
+.bus-clock {
+  flex: 1;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'label tag' 'time time';
+  align-items: center;
+}
+.bus-clock-label { grid-area: label; font-size: 2.4cqw; color: var(--muted); font-weight: 600; }
+.bus-clock-time {
+  grid-area: time;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 7cqw;
+  line-height: 1.05;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+.bus-clock-tag {
+  grid-area: tag;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 1cqw;
+  font-size: 2cqw;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.5cqw 1.4cqw;
+  border-radius: 99px;
+  background: var(--ink-3);
+}
+.bus-clock[data-source="bus"] .bus-clock-tag::before,
+.bus-clock[data-source="cap"] .bus-clock-tag::before {
+  content: '';
+  width: 1.4cqw; height: 1.4cqw;
+  border-radius: 50%;
+  background: var(--correct);
+  animation: blink 1.6s infinite;
+}
+/* Estimate mode: dashed border + explicit label, never color alone. */
+.bus-clock[data-source="estimate"] { border-style: dashed; }
+.bus-clock[data-source="estimate"] .bus-clock-time { color: var(--paper); }
+.bus-clock[data-source="estimate"] .bus-clock-tag { background: transparent; border: 0.3cqw dashed var(--muted); color: var(--muted); }
+@keyframes blink { 50% { opacity: 0.25; } }
+
+.scorebox { min-width: 30cqw; text-align: right; align-content: center; }
+.scorebox-label { font-size: 2.4cqw; color: var(--muted); font-weight: 600; }
+.scorebox-value { font-family: var(--font-mono); font-weight: 700; font-size: 7cqw; line-height: 1.05; }
+.streak { font-size: 2.6cqw; font-weight: 800; color: var(--amber); }
+.streak.bump { animation: bump 0.5s ease; }
+@keyframes bump { 40% { transform: scale(1.25); } }
+
+/* ---------- Round meta + timer ---------- */
+.round-meta { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; }
+.round-meta-left { display: flex; flex-direction: column; gap: 1.4cqw; }
+.diff-chip {
+  --c: var(--easy);
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.6cqw;
+  padding: 1cqw 2.4cqw 1cqw 1.8cqw;
+  border-radius: 99px;
+  border: 0.4cqw solid var(--c);
+  color: var(--c);
+  font-weight: 900;
+  font-stretch: 115%;
+  font-size: 3.4cqw;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.diff-chip[data-diff="medium"] { --c: var(--medium); }
+.diff-chip[data-diff="hard"] { --c: var(--hard); }
+/* Filled-dot count (1/2/3) carries difficulty without relying on color. */
+.diff-dots { display: inline-flex; gap: 0.7cqw; }
+.diff-dots i { width: 1.8cqw; height: 1.8cqw; border-radius: 50%; border: 0.35cqw solid var(--c); }
+.diff-chip[data-diff="easy"] .diff-dots i:nth-child(-n+1),
+.diff-chip[data-diff="medium"] .diff-dots i:nth-child(-n+2),
+.diff-chip[data-diff="hard"] .diff-dots i:nth-child(-n+3) { background: var(--c); }
+.round-info { display: flex; gap: 2.4cqw; font-size: 2.8cqw; color: var(--muted); font-weight: 600; }
+.worth { color: var(--paper); }
+
+.timer { position: relative; width: 17cqw; height: 17cqw; flex: none; }
+.timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.timer circle { fill: none; stroke-width: 8; }
+.timer-track { stroke: var(--ink-3); }
+.timer-fill {
+  stroke: var(--amber);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+
+/* Countdown visuals run as one continuous CSS animation per phase (started
+   from JS with the phase's duration) instead of being redrawn every tick,
+   so they drain smoothly at the display's frame rate. */
+@keyframes ring-drain { to { stroke-dashoffset: 100; } }
+@keyframes bar-drain { to { transform: scaleX(0); } }
+.timer-num {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 6.4cqw;
+}
+/* Last 5 seconds: tick sound ↔ red ring + pulse + number turns red. */
+.timer.hurry .timer-fill { stroke: var(--wrong); }
+.timer.hurry .timer-num { color: var(--wrong); animation: pulse 1s ease-in-out infinite; }
+.timer.done { opacity: 0.35; }
+@keyframes pulse { 50% { transform: scale(1.15); } }
+
+/* ---------- Question ---------- */
+.question-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.6cqh;
+  padding: 3cqw 4cqw;
+  border-radius: calc(var(--radius) * 1.6);
+  background: var(--ombre-easy);
+  /* Ombrés are light, so the card switches to dark text (≥4.4:1 on every stop). */
+  color: var(--ink);
+}
+.question-card[data-diff="medium"] { background: var(--ombre-medium); }
+.question-card[data-diff="hard"] { background: var(--ombre-hard); }
+.category { margin: 0; font-size: 2.6cqw; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); opacity: 0.72; }
+.question { margin: 0; font-size: 5.6cqw; line-height: 1.2; font-weight: 800; font-stretch: 105%; text-wrap: balance; overflow-wrap: anywhere; }
+.question.long { font-size: 4.6cqw; }
+.question.xlong { font-size: 3.9cqw; }
+
+/* ---------- Answers ---------- */
+.answers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* equal halves, never content-widened */
+  gap: 2.4cqw;
+}
+.answer {
+  position: relative;
+  width: 100%;
+  min-height: 15cqh;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  padding: 3cqw;
+  text-align: left;
+  border-radius: 999px;
+  border: 0.45cqw solid var(--line);
+  background: var(--ink-2);
+  font-size: 3.6cqw;
+  font-weight: 700;
+  line-height: 1.2;
+  transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease, opacity 0.2s;
+}
+.answer.small-text { font-size: 3cqw; }
+.answer.xsmall-text { font-size: 2.6cqw; padding: 2cqw; }
+.answer:active:not(:disabled) { transform: scale(0.97); }
+.answer:disabled { cursor: default; }
+.letter {
+  flex: none;
+  display: grid; place-items: center;
+  width: 7.2cqw; height: 7.2cqw;
+  border-radius: 50%;
+  background: var(--ink-3);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 3.4cqw;
+}
+/* Some OpenTDB answers contain long unbroken tokens ("Boundaries/Convergent/Oceanic"),
+   which would otherwise refuse to wrap and stretch the bubble. */
+.answer-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.answer-status {
+  position: absolute;
+  top: -1.6cqw;
+  right: 4cqw;
+  padding: 0.4cqw 1.6cqw;
+  border-radius: 99px;
+  font-size: 2.2cqw;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.answer-status:empty { display: none; }
+
+/* Reveal states: color + icon (letter becomes ✓/✗) + text label. */
+.answer.is-picked { border-color: var(--paper); }
+.answer.is-correct { background: var(--correct); border-color: var(--correct); color: var(--correct-ink); }
+.answer.is-correct .letter { background: var(--correct-ink); color: var(--correct); }
+.answer.is-correct .answer-status { background: var(--correct-ink); color: var(--correct); }
+.answer.is-wrong { background: var(--wrong); border-color: var(--wrong); color: var(--wrong-ink); }
+.answer.is-wrong .letter { background: var(--wrong-ink); color: var(--wrong); }
+.answer.is-wrong .answer-status { background: var(--wrong-ink); color: var(--wrong); }
+.answer.is-dim { opacity: 0.35; }
+
+/* ---------- Reveal / explanation ---------- */
+.reveal {
+  display: grid;
+  gap: 1.6cqh;
+  padding: 3cqw 4cqw;
+  border-radius: calc(var(--radius) * 1.6);
+  background: var(--paper);
+  color: var(--ink);
+  animation: rise 0.3s ease-out;
+}
+@keyframes rise { from { transform: translateY(3cqh); opacity: 0; } }
+.verdict { display: flex; align-items: center; gap: 2cqw; font-weight: 900; font-stretch: 115%; font-size: 4.6cqw; }
+.verdict-icon {
+  display: grid; place-items: center;
+  width: 7cqw; height: 7cqw;
+  border-radius: 50%;
+  font-size: 4.4cqw;
+  color: #fff;
+}
+.verdict[data-result="correct"] .verdict-icon { background: #148a57; }
+.verdict[data-result="wrong"] .verdict-icon { background: #c62828; }
+.verdict-points { margin-left: auto; font-family: var(--font-mono); font-size: 4.4cqw; }
+.explain-text { margin: 0; font-size: 3.2cqw; line-height: 1.35; font-weight: 500; }
+.explain-text[data-loading="true"] { color: #5d6b85; font-style: italic; }
+.next-row { display: flex; align-items: center; gap: 3cqw; font-size: 2.6cqw; font-weight: 600; color: #3a4760; }
+.next-bar { flex: 1; height: 1.2cqw; border-radius: 99px; background: #dcd6c6; overflow: hidden; }
+.next-bar i { display: block; height: 100%; width: 100%; background: var(--ink); transform-origin: left; }
+
+/* During reveal only the correct answer and the rider's pick stay on screen,
+   and the (frozen, dimmed) answer ring is hidden — the explanation card has
+   its own countdown — making room for the explanation. Sized so every
+   question in data/questions.json fits with a 40-word explanation. */
+.game.revealing .timer { display: none; }
+.game.revealing .question-card { flex: 1 1 auto; padding-block: 2cqw; gap: 1cqh; }
+.game.revealing .question { font-size: 4.4cqw; }
+.game.revealing .category { display: none; } /* already seen on the question screen */
+.game.revealing .question.long { font-size: 3.9cqw; }
+.game.revealing .question.xlong { font-size: 3.5cqw; }
+.game.revealing .answers li:has(> .is-dim) { display: none; }
+.game.revealing .answer { min-height: 10cqh; }
+
+/* ==========================================================================
+   SESSION END
+   ========================================================================== */
+.end { justify-content: center; gap: 3cqh; }
+.end-hero { display: grid; justify-items: start; gap: 1.4cqh; }
+.end-icon {
+  display: grid; place-items: center;
+  width: 14cqw; height: 14cqw;
+  border-radius: 3cqw;
+  background: var(--amber);
+}
+.end-icon svg { width: 70%; height: 70%; fill: var(--amber-ink); }
+.end-title { margin: 0; font-size: 11cqw; line-height: 0.95; font-weight: 900; font-stretch: 120%; text-transform: uppercase; }
+.end-sub { margin: 0; font-size: 3.8cqw; color: var(--muted); }
+.end-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2cqw; margin: 0; }
+.end-stats div { background: var(--ink-2); border: 0.3cqw solid var(--line); border-radius: var(--radius); padding: 2.4cqw 3cqw; }
+.end-stats dt { font-size: 2.4cqw; color: var(--muted); font-weight: 600; }
+.end-stats dd { margin: 0; font-family: var(--font-mono); font-weight: 700; font-size: 6cqw; }
+.end-actions { display: flex; gap: 2.4cqw; }
+.end-actions .btn { flex: 1; }
+
+/* ==========================================================================
+   OVERLAYS
+   ========================================================================== */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 10, 20, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: var(--pad);
+}
+
+.bus-alert-card {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 2.4cqh;
+  padding: 7cqw 6cqw 6cqw;
+  border-radius: calc(var(--radius) * 2);
+  background: var(--paper);
+  color: var(--ink);
+  animation: rise 0.35s ease-out, ring 1.2s ease-out 2;
+}
+/* Bus sound ↔ hazard stripe + ring flash + text. */
+.bus-alert-stripe {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2.4cqw;
+  background: repeating-linear-gradient(-45deg, var(--amber) 0 3cqw, var(--ink) 3cqw 6cqw);
+}
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(255, 184, 28, 0.9); } 100% { box-shadow: 0 0 0 6cqw rgba(255, 184, 28, 0); } }
+.bus-alert .eyebrow { color: #8a5b00; }
+.bus-alert h2 { margin: 0; font-size: 7.2cqw; line-height: 1.05; font-weight: 900; font-stretch: 115%; }
+.bus-alert-count { margin: 0; font-size: 4cqw; }
+.bus-alert-count b { font-family: var(--font-mono); font-size: 1.6em; }
+.bus-alert-routes { display: flex; gap: 2cqw; }
+.bus-alert .btn { font-size: 4.4cqw; padding: 3.2cqw 8cqw; }
+.bus-alert-note { margin: 0; font-size: 2.8cqw; color: #4a5670; }
+
+.countdown { align-content: center; gap: 2cqh; text-align: center; }
+.countdown-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 40cqw;
+  line-height: 1;
+  color: var(--amber);
+  animation: pop 1s ease-out;
+}
+.countdown p { margin: 0; font-size: 4cqw; font-weight: 700; }
+@keyframes pop { from { transform: scale(1.6); opacity: 0; } 30% { opacity: 1; } }
+
+.toast {
+  position: absolute;
+  z-index: 20;
+  left: var(--pad);
+  right: var(--pad);
+  top: calc(var(--pad) + 16cqw);
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  padding: 3cqw 3.6cqw;
+  border-radius: var(--radius);
+  background: var(--amber);
+  color: var(--amber-ink);
+  font-size: 3.4cqw;
+  font-weight: 800;
+  box-shadow: 0 2cqw 6cqw rgba(0, 0, 0, 0.5);
+  animation: rise 0.3s ease-out;
+}
+.toast-icon svg { width: 5cqw; height: 5cqw; fill: currentColor; display: block; }
+
+/* Debug panel (?debug) */
+.debug {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 100;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #444;
+  border-radius: 8px;
+  font: 12px/1.3 var(--font-mono);
+  color: #cfe;
+  max-width: 230px;
+}
+.debug button { font-size: 12px; padding: 4px 6px; background: #223; color: #cfe; border: 1px solid #446; border-radius: 4px; text-align: left; }
+.debug output { white-space: pre-wrap; color: #9ab; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Countdown drains carry information, not decoration, so they keep running. */
+  *:not(.timer-fill):not(#next-fill):not(#loading-fill), *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
