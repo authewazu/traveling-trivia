@@ -12,7 +12,8 @@ export const TIMING = {
   answerMs: s(15),
   revealMs: s(7),
   explainDeadlineMs: s(5),
-  idleResetMs: s(40),
+  idleNoticeMs: s(5), // "Idle session detected" screen before the title screen
+  endScreenIdleMs: s(40), // untouched end screen → title screen
   sessionCapMs: s(6 * 60),
   busWarningMs: s(30), // bus banner + game pause, this long before arrival
   resumeCountdownSec: 3,
@@ -24,6 +25,11 @@ export const TIMING = {
   // session, so jittery predictions don't cause a pop-up every poll.
   etaShortenThresholdMs: 5_000,
 };
+
+// Idle = this many rounds in a row that timed out with no answer. With nobody
+// touching it, that's question + reveal + question + reveal + question
+// (15+7+15+7+15 = 59s), then the "Idle session detected" screen.
+export const IDLE_UNANSWERED_ROUNDS = 3;
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'];
 export const BASE_POINTS = { easy: 1, medium: 2, hard: 3 };

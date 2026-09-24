@@ -1,4 +1,4 @@
-import { TIMING, BUS, BASE_POINTS, DEBUG } from './config.js';
+import { TIMING, BUS, BASE_POINTS, DEBUG, IDLE_UNANSWERED_ROUNDS } from './config.js';
 import { pickDifficulty } from './difficulty.js';
 import { scoreRound, multiplierFor, fmt } from './scoring.js';
 import { loadQuestionBank } from './questions.js';
@@ -26,8 +26,8 @@ const bus = new BusFeed(onBusUpdate);
 const LOOKAHEAD = 3;
 
 let session = null;
-let phase = 'idle'; // 'idle' | 'loading' | 'question' | 'reveal' | 'ended'
-let loadingTimer = null;
+let phase = 'idle'; // 'idle' | 'loading' | 'question' | 'reveal' | 'ended' | 'timeout'
+let screenTimer = null; // drives the timed loading and idle-notice screens
 let phaseEndsAt = 0;
 let pausedRemaining = null; // ms left in the phase while the bus alert is up
 let overlay = null; // null | 'bus' | 'countdown'
@@ -63,7 +63,7 @@ function announce(text) {
 }
 
 function showScreen(name) {
-  for (const s of ['idle', 'loading', 'game', 'end']) $(`screen-${s}`).hidden = s !== name;
+  for (const s of ['idle', 'loading', 'game', 'end', 'timeout']) $(`screen-${s}`).hidden = s !== name;
   $('app').dataset.screen = name;
 }
 
@@ -117,13 +117,26 @@ function renderBoard(ol) {
 }
 
 function goIdle() {
-  clearTimeout(loadingTimer);
+  clearTimeout(screenTimer);
   session = null;
   phase = 'idle';
   hideOverlays();
   showScreen('idle');
   renderDepartures();
   renderBoard($('board-idle'));
+}
+
+// Shown after three unanswered rounds. Answered rounds already counted toward
+// today's total the moment they were answered, so nothing is lost. A tap
+// skips straight to the title screen.
+function showIdleNotice() {
+  session = null;
+  phase = 'timeout';
+  showScreen('timeout');
+  announce($('timeout-message').textContent);
+  sound.play('notice');
+  clearTimeout(screenTimer);
+  screenTimer = setTimeout(goIdle, TIMING.idleNoticeMs);
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +159,7 @@ function dealInto(target, count) {
 // while the first rounds are dealt and their explanations start generating.
 function beginLoading() {
   sound.unlock();
-  clearTimeout(loadingTimer);
+  clearTimeout(screenTimer);
   hideOverlays();
   session = null;
   phase = 'loading';
@@ -163,7 +176,7 @@ function beginLoading() {
   questionBank.ready.then(() => {
     if (phase === 'loading') dealInto(prep, LOOKAHEAD);
   });
-  loadingTimer = setTimeout(() => startSession(prep), TIMING.loadingMs);
+  screenTimer = setTimeout(() => startSession(prep), TIMING.loadingMs);
 }
 
 function startSession(prep) {
@@ -240,7 +253,7 @@ function endSession(reason) {
   // Queued rounds were never shown: put them back in the deck for later riders.
   for (const item of s.queue) questionBank.putBack(item.q);
   s.queue = [];
-  if (reason === 'idle') return goIdle();
+  if (reason === 'idle') return showIdleNotice();
 
   const isBus = reason === 'bus';
   $('end-icon').innerHTML = isBus ? BUS_SVG : CLOCK_SVG;
@@ -297,6 +310,10 @@ function answer(i) {
   if (correct) s.correct += 1;
   board.addPoints(points); // counts toward today immediately
   r.result = { pickedIndex: i, correct, points, multiplier, timedOut: i === null };
+
+  // Idle detection: consecutive rounds that ran out with no answer.
+  s.unanswered = i === null ? (s.unanswered ?? 0) + 1 : 0;
+  if (s.unanswered >= IDLE_UNANSWERED_ROUNDS) return endSession('idle');
 
   phase = 'reveal';
   phaseEndsAt = now() + TIMING.revealMs;
@@ -570,10 +587,10 @@ function tick() {
     return;
   }
 
-  if (phase === 'loading') return; // loadingTimer starts the session
+  if (phase === 'loading') return; // screenTimer starts the session
 
   if (phase === 'ended') {
-    if ((endScreenUntil && t >= endScreenUntil) || t - lastInteraction > TIMING.idleResetMs) goIdle();
+    if ((endScreenUntil && t >= endScreenUntil) || t - lastInteraction > TIMING.endScreenIdleMs) goIdle();
     return;
   }
 
@@ -592,7 +609,6 @@ function tick() {
       renderNext();
       if (t >= phaseEndsAt) startRound();
     }
-    if (t - lastInteraction > TIMING.idleResetMs) endSession('idle');
   }
 }
 
@@ -613,6 +629,7 @@ document.addEventListener('visibilitychange', () => {
 $('start-btn').addEventListener('click', () => { sound.play('tap'); beginLoading(); });
 $('play-again').addEventListener('click', () => { sound.play('tap'); beginLoading(); });
 $('done-btn').addEventListener('click', goIdle);
+$('screen-timeout').addEventListener('click', goIdle); // tap skips the idle notice
 $('not-my-bus').addEventListener('click', notMyBus);
 $('answers').addEventListener('click', (e) => {
   const btn = e.target.closest('.answer');

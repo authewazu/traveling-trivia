@@ -61,15 +61,21 @@ function userMessage(q) {
 }
 
 export default async function handler(req, res) {
-  const fail = (status) => {
+  // `reason` is a short, non-secret diagnostic (the kiosk ignores it) so a
+  // failure can be read straight from the browser: /api/explain?id=...
+  const fail = (status, reason, detail) => {
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(status).json({ correct: null });
+    return res.status(status).json({ correct: null, reason, ...(detail ? { detail } : {}) });
   };
-  if (req.method !== 'GET') return fail(405);
+  if (req.method !== 'GET') return fail(405, 'method_not_allowed');
 
   const id = typeof req.query.id === 'string' ? req.query.id : '';
   const q = /^[0-9a-f]{10}$/.test(id) ? questionById(id) : null;
-  if (!q) return fail(404);
+  if (!q) return fail(404, 'unknown_question_id');
+  if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+    // Set it in Vercel → Settings → Environment Variables, then redeploy.
+    return fail(500, 'missing_api_key');
+  }
 
   const ok = (sentence) => {
     // Cache at Vercel's CDN for 30 days (a redeploy clears it).
@@ -89,24 +95,34 @@ export default async function handler(req, res) {
     // Refusals or a cut-off reply may not match the schema: don't parse or cache them.
     if (response.stop_reason !== 'end_turn') {
       console.warn(`[api/explain] ${id}: stop_reason ${response.stop_reason}`);
-      return fail(502);
+      return fail(502, `stop_${response.stop_reason}`);
     }
     const text = response.content.find((b) => b.type === 'text')?.text ?? '';
-    const sentence = String(JSON.parse(text).correct ?? '').replace(/\s+/g, ' ').trim();
-    if (!sentence || sentence.split(' ').length > MAX_WORDS) return fail(502);
+    let sentence;
+    try {
+      sentence = String(JSON.parse(text).correct ?? '').replace(/\s+/g, ' ').trim();
+    } catch {
+      console.error(`[api/explain] ${id}: reply was not JSON:`, text.slice(0, 200));
+      return fail(502, 'bad_json');
+    }
+    if (!sentence) return fail(502, 'empty');
+    if (sentence.split(' ').length > MAX_WORDS) return fail(502, 'too_long');
 
     memo.set(id, sentence);
     return ok(sentence);
   } catch (error) {
     if (error instanceof Anthropic.APIConnectionTimeoutError) {
       console.warn(`[api/explain] ${id}: timed out`);
-    } else if (error instanceof Anthropic.RateLimitError) {
-      console.warn(`[api/explain] ${id}: rate limited`);
-    } else if (error instanceof Anthropic.APIError) {
-      console.error(`[api/explain] ${id}: API error ${error.status}:`, error.message);
-    } else {
-      console.error(`[api/explain] ${id}:`, error); // includes JSON.parse failures
+      return fail(504, 'timeout');
     }
-    return fail(502);
+    if (error instanceof Anthropic.APIError) {
+      // e.g. 401 authentication_error (bad key), 400 invalid_request_error
+      // (billing/credit, bad parameter), 404 not_found_error (model id), 429.
+      const type = error.error?.error?.type ?? 'api_error';
+      console.error(`[api/explain] ${id}: API error ${error.status} ${type}:`, error.message);
+      return fail(502, `anthropic_${error.status ?? 'network'}_${type}`, String(error.message).slice(0, 200));
+    }
+    console.error(`[api/explain] ${id}:`, error);
+    return fail(502, 'server_error', String(error?.message ?? error).slice(0, 200));
   }
 }

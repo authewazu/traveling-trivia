@@ -368,9 +368,43 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
 }
 
 /* ==========================================================================
+   IDLE NOTICE (after 3 unanswered rounds)
+   ========================================================================== */
+.timeout { justify-content: center; align-items: center; }
+.timeout-message {
+  margin: 0;
+  max-width: 84cqw;
+  text-align: center;
+  font-family: var(--font-body); /* BBH Hegarty */
+  font-size: 48px;
+  line-height: 1.2;
+  color: var(--medium-1); /* Figma MEDIUM/1 #4BE3D6 */
+}
+.timeout-message span { display: block; }
+.timeout-message span + span { margin-top: 0.5em; }
+
+/* ==========================================================================
    GAME
    ========================================================================== */
 .game { gap: 2cqh; }
+
+/* OpenTDB attribution (CC BY-SA 4.0). Sits in the screen's top padding, above
+   the bus countdown, so it doesn't take height from the game layout. */
+.credit {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 1.2cqw);
+  left: calc(var(--pad) + env(safe-area-inset-left));
+  right: calc(var(--pad) + env(safe-area-inset-right));
+  margin: 0;
+  font-size: 1.7cqw;
+  line-height: 1.2;
+  font-weight: 400;
+  color: var(--muted);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .hud { display: flex; gap: 2.4cqw; }
 .bus-clock, .scorebox {
