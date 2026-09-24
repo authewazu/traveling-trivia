@@ -63,8 +63,18 @@
       <p class="disclaimer">This is for a UPenn Prototyping course. Not affiliated with SEPTA.</p>
     </section>
 
+    <!-- ============ IDLE NOTICE (3 unanswered rounds) ============ -->
+    <section class="screen timeout" id="screen-timeout" role="status" hidden>
+      <p class="timeout-message" id="timeout-message">
+        <span>Idle session detected.</span>
+        <span>Returning to title screen.</span>
+        <span>Earned points have been saved.</span>
+      </p>
+    </section>
+
     <!-- ============ GAME ============ -->
     <section class="screen game" id="screen-game" aria-label="Trivia game" hidden>
+      <p class="credit">Trivia questions from Open Trivia Database (opentdb.com), licensed under CC BY-SA 4.0.</p>
       <header class="hud">
         <div class="bus-clock" id="bus-clock" data-source="estimate">
           <span class="bus-clock-label" id="bus-clock-label">Session ends in</span>

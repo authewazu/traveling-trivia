@@ -31,7 +31,17 @@ Vercel installs `@anthropic-ai/sdk` for `api/explain.js` from `package.json`; no
 
 If the API key is missing or a call is slow, the game still runs and shows the fallback line ("Here's a fact worth looking into!").
 
-To check the AI call after deploying, open `https://<your-site>/api/explain?id=<a question id from data/questions.json>` in a browser. It should return `{"correct": "..."}`. Errors show up under the project's Logs in Vercel.
+To check the AI call after deploying, open `https://<your-site>/api/explain?id=52ba3d2781` (the Polaris question; any `id` from `data/questions.json` works) in a browser. It should return `{"correct": "..."}`. If it fails, the reply includes a short `reason`:
+
+| `reason` | Meaning / fix |
+|---|---|
+| `missing_api_key` | `ANTHROPIC_API_KEY` isn't set for this deployment. Add it (Production environment) and redeploy. |
+| `anthropic_401_authentication_error` | The key is wrong or was revoked. Re-copy it from console.anthropic.com (no quotes or spaces). |
+| `anthropic_400_invalid_request_error` | Usually no billing credit on the Anthropic account; `detail` says which. |
+| `anthropic_404_not_found_error` | The model id isn't available to this key; check `CLAUDE_MODEL`. |
+| `timeout` | Claude took longer than 4.5s. Retrying later usually works. |
+
+Full error details are under the project's Logs in Vercel.
 
 ## iPad kiosk setup
 
@@ -78,7 +88,8 @@ dev/fetch_questions.py  rebuilds data/questions.json from OpenTDB
 - **Cap reached**: "Time's up!" with Play again.
 - **Round cut off mid-question**: Points are only awarded at answer time, so the round never counts. Rounds already in the explanation phase have counted.
 - **No answer in 15s**: Scores as wrong (0 points, multiplier reset).
-- **Idle 40s**: Returns to the idle screen, measured from the last touch. Paused while the bus banner or 3-2-1 is up.
+- **Idle**: 3 rounds in a row that time out with no answer (15+7+15+7+15 = 59s untouched) end the session with an "Idle session detected. Returning to title screen. Earned points have been saved." screen (BBH Hegarty, Figma MEDIUM/1). It returns to the title after 5s, or immediately on a tap. Answering any question resets the count. An untouched end screen returns to the title after 40s.
+- **Attribution**: The game screen shows "Trivia questions from Open Trivia Database (opentdb.com), licensed under CC BY-SA 4.0." in small light text above the bus countdown, as the OpenTDB license requires.
 - **Questions**: Served from `data/questions.json`, a snapshot of every multiple-choice OpenTDB question in the sanctioned categories (9 General Knowledge, 17 Science & Nature, 18 Computers, 19 Mathematics, 22 Geography, 23 History, 24 Politics, 27 Animals, 30 Gadgets). Each difficulty works like a shuffled deck: the iPad remembers which questions it has shown and doesn't repeat one until that difficulty's deck is used up. If the file can't load, a small built-in bank (same categories) covers it.
 - **AI explanations**: There is exactly one explanation per question (why the correct answer is right), shown whether the rider picked right or wrong. When a question is dealt (up to 3 rounds ahead), the kiosk requests `GET /api/explain?id=<question id>`. The function looks the question up in `data/questions.json` (so it can only explain bank questions) and asks Claude Haiku 4.5 for `{"correct": "<one sentence, under 20 words>"}` using structured JSON output and `max_tokens: 100`. Answers are cached by question in three places: the iPad's localStorage, Vercel's CDN (30 days, cleared on redeploy), and a warm function's memory. Anything that fails, times out (5s), or comes back empty shows the fallback line and is never cached.
 - **Leaderboard**: Every answered round adds to today's total immediately. It shows the last 5 calendar days ranked by total, each labelled with its date ("Wed, Sep 23"); today also gets a TODAY badge. The 4 days before first launch get placeholder values (`LEADERBOARD.seed` in config).
