@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0b1426" />
+  <title>Traveling Trivia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@500;700&family=Bungee+Shade&family=BBH+Hegarty&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div class="app" id="app" data-screen="idle">
+
+    <!-- ============ IDLE ============ -->
+    <section class="screen idle" id="screen-idle" aria-labelledby="idle-title">
+      <header class="stop-header">
+        <div class="stop-sign" aria-label="Bus stop: Chestnut Street and 20th Street">
+          <span class="stop-glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 16V7a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v9a2 2 0 0 1-1 1.7V20a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H9v1a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2.3A2 2 0 0 1 5 16Zm2-8v4h10V8H7Zm1.5 8a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Zm7 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z"/></svg>
+          </span>
+          <span class="stop-name">Chestnut <span class="amp">&amp;</span> 20th</span>
+        </div>
+        <ul class="departures" id="idle-buses" aria-label="Next buses"></ul>
+      </header>
+
+      <p class="eyebrow idle-eyebrow">Waiting for the 21 or 42?</p>
+
+      <div class="idle-hero">
+        <h1 class="title" id="idle-title"><span class="title-line-1">Traveling</span> <span class="title-line-2">Trivia</span></h1>
+        <p class="tagline">Answer questions until your bus pulls up. Every point counts toward today's stop total.</p>
+      </div>
+
+      <button class="btn btn-primary btn-start" id="start-btn" type="button">
+        <span>Tap to play</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+
+      <section class="board" aria-labelledby="board-idle-title">
+        <div class="board-head">
+          <h2 id="board-idle-title">Stop leaderboard</h2>
+          <span class="board-sub">Last 5 days</span>
+        </div>
+        <ol class="board-list" id="board-idle"></ol>
+      </section>
+
+      <button class="sound-toggle" id="sound-toggle" type="button" aria-pressed="true">
+        <svg class="icon-on" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4Zm-2.5-8.8v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6Z"/></svg>
+        <svg class="icon-off" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7Z"/></svg>
+        <span id="sound-label">Sound on</span>
+      </button>
+    </section>
+
+    <!-- ============ LOADING ============ -->
+    <section class="screen loading" id="screen-loading" aria-labelledby="loading-message" hidden>
+      <p class="loading-message" id="loading-message"><span class="loading-message-text">Don't let the tech do all your thinking for you.</span></p>
+      <div class="loading-bar" aria-hidden="true"><i id="loading-fill"></i></div>
+      <p class="disclaimer">This is for a UPenn Prototyping course. Not affiliated with SEPTA.</p>
+    </section>
+
+    <!-- ============ GAME ============ -->
+    <section class="screen game" id="screen-game" aria-label="Trivia game" hidden>
+      <header class="hud">
+        <div class="bus-clock" id="bus-clock" data-source="estimate">
+          <span class="bus-clock-label" id="bus-clock-label">Session ends in</span>
+          <span class="bus-clock-time" id="bus-clock-time">6:00</span>
+          <span class="bus-clock-tag" id="bus-clock-tag">Estimate</span>
+        </div>
+        <div class="scorebox">
+          <span class="scorebox-label">Score</span>
+          <span class="scorebox-value" id="score">0.0</span>
+          <span class="streak" id="streak">Streak ×1.0</span>
+        </div>
+      </header>
+
+      <div class="round-meta">
+        <div class="round-meta-left">
+          <span class="diff-chip" id="diff-chip" data-diff="easy">
+            <span class="diff-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span id="diff-label">Easy</span>
+          </span>
+          <span class="round-info">
+            <span id="round-num">Round 1</span>
+            <span class="worth" id="worth">Worth 1.0 pts</span>
+          </span>
+        </div>
+        <div class="timer" id="timer" role="timer" aria-label="Seconds left to answer">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="timer-track" cx="50" cy="50" r="44" />
+            <circle class="timer-fill" id="timer-fill" cx="50" cy="50" r="44" pathLength="100" />
+          </svg>
+          <span class="timer-num" id="timer-num">15</span>
+        </div>
+      </div>
+
+      <div class="question-card" id="question-card" data-diff="easy">
+        <p class="category" id="category">General knowledge</p>
+        <h2 class="question" id="question">Loading question…</h2>
+      </div>
+
+      <ol class="answers" id="answers">
+        <li><button class="answer" type="button" data-i="0"><span class="letter">A</span><span class="answer-text"></span><span class="answer-status"></span></button></li>
+        <li><button class="answer" type="button" data-i="1"><span class="letter">B</span><span class="answer-text"></span><span class="answer-status"></span></button></li>
+        <li><button class="answer" type="button" data-i="2"><span class="letter">C</span><span class="answer-text"></span><span class="answer-status"></span></button></li>
+        <li><button class="answer" type="button" data-i="3"><span class="letter">D</span><span class="answer-text"></span><span class="answer-status"></span></button></li>
+      </ol>
+
+      <section class="reveal" id="reveal" aria-live="polite" hidden>
+        <div class="verdict" id="verdict" data-result="correct">
+          <span class="verdict-icon" id="verdict-icon" aria-hidden="true"></span>
+          <span class="verdict-text" id="verdict-text">Correct!</span>
+          <span class="verdict-points" id="verdict-points">+1.0</span>
+        </div>
+        <p class="explain-text" id="explain-text" data-loading="true">Looking that up…</p>
+        <div class="next-row">
+          <span>Next question in <b id="next-num">10</b></span>
+          <div class="next-bar"><i id="next-fill"></i></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ============ SESSION END ============ -->
+    <section class="screen end" id="screen-end" aria-labelledby="end-title" hidden>
+      <div class="end-hero">
+        <span class="end-icon" id="end-icon" aria-hidden="true"></span>
+        <h1 class="end-title" id="end-title">Time's up!</h1>
+        <p class="end-sub" id="end-sub">No bus yet. Want another round?</p>
+      </div>
+      <dl class="end-stats">
+        <div><dt>Points</dt><dd id="end-score">0.0</dd></div>
+        <div><dt>Correct</dt><dd id="end-correct">0 / 0</dd></div>
+        <div><dt>Best streak</dt><dd id="end-streak">0</dd></div>
+      </dl>
+      <section class="board" aria-labelledby="board-end-title">
+        <div class="board-head">
+          <h2 id="board-end-title">Stop leaderboard</h2>
+          <span class="board-sub">Your points are in today's total</span>
+        </div>
+        <ol class="board-list" id="board-end"></ol>
+      </section>
+      <div class="end-actions">
+        <button class="btn btn-primary" id="play-again" type="button">Play again</button>
+        <button class="btn btn-ghost" id="done-btn" type="button">Done</button>
+      </div>
+    </section>
+
+    <!-- ============ OVERLAYS ============ -->
+    <div class="overlay bus-alert" id="bus-alert" role="alertdialog" aria-modal="true" aria-labelledby="bus-alert-title" aria-describedby="bus-alert-desc" hidden>
+      <div class="bus-alert-card">
+        <div class="bus-alert-stripe" aria-hidden="true"></div>
+        <p class="eyebrow">Heads up · game paused</p>
+        <h2 id="bus-alert-title">Route 21 is almost here</h2>
+        <p class="bus-alert-count" id="bus-alert-desc">Arriving in <b id="bus-alert-secs">30</b> seconds</p>
+        <div class="bus-alert-routes" id="bus-alert-routes"></div>
+        <button class="btn btn-primary" id="not-my-bus" type="button">That's not my bus</button>
+        <p class="bus-alert-note">If it is, have a good ride. Your points are already saved.</p>
+      </div>
+    </div>
+
+    <div class="overlay countdown" id="countdown" aria-live="assertive" hidden>
+      <span class="countdown-num" id="countdown-num">3</span>
+      <p>Back to the game</p>
+    </div>
+
+    <div class="toast" id="toast" role="status" hidden>
+      <span class="toast-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"/></svg>
+      </span>
+      <span id="toast-text"></span>
+    </div>
+
+    <div class="sr-only" id="live" aria-live="polite"></div>
+  </div>
+</body>
+</html>

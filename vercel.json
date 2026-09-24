@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "api/bus.js": { "maxDuration": 10 },
+    "api/explain.js": { "maxDuration": 10, "includeFiles": "data/questions.json" }
+  },
+  "headers": [
+    {
+      "source": "/((?!api/).*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}
