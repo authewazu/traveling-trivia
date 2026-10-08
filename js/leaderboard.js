@@ -18,17 +18,15 @@ function save(data) {
   try { localStorage.setItem(LEADERBOARD.storageKey, JSON.stringify(data)); } catch {}
 }
 
-export function seedIfNeeded() {
-  try {
-    if (localStorage.getItem(LEADERBOARD.seededKey)) return;
-    const data = load();
-    LEADERBOARD.seed.forEach((total, i) => {
-      const key = dayKey(daysAgo(i + 1));
-      if (data[key] == null) data[key] = total;
-    });
-    save(data);
-    localStorage.setItem(LEADERBOARD.seededKey, '1');
-  } catch {}
+// Placeholder total for a past day with no real points (testing/demo).
+// Derived from the date, so a given day always shows the same number, and
+// never stored, so real totals always win. Range LEADERBOARD.mockRange, in
+// half points (the scoring unit).
+function mockTotal(key) {
+  let h = 2166136261;
+  for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  const [lo, hi] = LEADERBOARD.mockRange;
+  return lo + ((h >>> 0) % ((hi - lo) * 2 + 1)) / 2;
 }
 
 export function addPoints(points) {
@@ -52,10 +50,14 @@ export function recentDays() {
   const fmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const days = Array.from({ length: LEADERBOARD.days }, (_, i) => {
     const d = daysAgo(i);
+    const key = dayKey(d);
+    // Today is always real; earlier days without real points get a mock total.
+    const real = data[key];
+    const useMock = i > 0 && real == null && LEADERBOARD.mockPastDays;
     return {
-      key: dayKey(d),
+      key,
       label: fmt.format(d),
-      total: data[dayKey(d)] ?? 0,
+      total: useMock ? mockTotal(key) : real ?? 0,
       isToday: i === 0,
     };
   });

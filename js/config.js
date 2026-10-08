@@ -113,8 +113,9 @@ export const EXPLAIN_ENDPOINT = '/api/explain';
 
 export const LEADERBOARD = {
   storageKey: 'tbs.daily.v1',
-  seededKey: 'tbs.seeded.v1',
   days: 5,
-  // Placeholder totals for the 4 days before first launch (testing only).
-  seed: [48.5, 31, 62, 17.5],
+  // Earlier days with no real points show a stable mock total in this range
+  // (never stored; real totals always win). Set to false for real-only.
+  mockPastDays: true,
+  mockRange: [15, 70],
 };

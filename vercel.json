@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/bus.js": { "maxDuration": 10 },
-    "api/explain.js": { "maxDuration": 10, "includeFiles": "data/questions.json" }
+    "api/explain.js": { "maxDuration": 10, "includeFiles": "data/easy_trivia_pool_vetted.json" }
   },
   "headers": [
     {

@@ -81,6 +81,13 @@
           <span class="bus-clock-time" id="bus-clock-time">6:00</span>
           <span class="bus-clock-tag" id="bus-clock-tag">Estimate</span>
         </div>
+        <div class="timer" id="timer" role="timer" aria-label="Seconds left to answer">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="timer-track" cx="50" cy="50" r="44" />
+            <circle class="timer-fill" id="timer-fill" cx="50" cy="50" r="44" pathLength="100" />
+          </svg>
+          <span class="timer-num" id="timer-num">10</span>
+        </div>
         <div class="scorebox">
           <span class="scorebox-label">Score</span>
           <span class="scorebox-value" id="score">0.0</span>
@@ -88,28 +95,9 @@
         </div>
       </header>
 
-      <div class="round-meta">
-        <div class="round-meta-left">
-          <span class="diff-chip" id="diff-chip" data-diff="easy">
-            <span class="diff-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span id="diff-label">Easy</span>
-          </span>
-          <span class="round-info">
-            <span id="round-num">Round 1</span>
-            <span class="worth" id="worth">Worth 1.0 pts</span>
-          </span>
-        </div>
-        <div class="timer" id="timer" role="timer" aria-label="Seconds left to answer">
-          <svg viewBox="0 0 100 100" aria-hidden="true">
-            <circle class="timer-track" cx="50" cy="50" r="44" />
-            <circle class="timer-fill" id="timer-fill" cx="50" cy="50" r="44" pathLength="100" />
-          </svg>
-          <span class="timer-num" id="timer-num">15</span>
-        </div>
-      </div>
-
-      <div class="question-card" id="question-card" data-diff="easy">
-        <p class="category" id="category">General knowledge</p>
+      <!-- The card's background is the question's category ombré ([data-cat]). -->
+      <div class="question-card" id="question-card" data-cat="general">
+        <p class="category" id="category">General Knowledge</p>
         <h2 class="question" id="question">Loading question…</h2>
       </div>
 
@@ -182,6 +170,13 @@
         <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z"/></svg>
       </span>
       <span id="toast-text"></span>
+    </div>
+
+    <!-- Hand-pose cursor (fed by js/pointer.js). Visual only: the same
+         selection is announced through the live region when it happens. -->
+    <div class="hand-cursor" id="hand-cursor" aria-hidden="true" hidden>
+      <span class="hand-cursor-ring"></span>
+      <span class="hand-cursor-count" id="hand-cursor-count"></span>
     </div>
 
     <div class="sr-only" id="live" aria-live="polite"></div>

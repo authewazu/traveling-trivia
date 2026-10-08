@@ -18,8 +18,8 @@
   --correct-ink: #04291a;
   --wrong: #ff6b6b;
   --wrong-ink: #3a0707;
-  /* Difficulty ombrés — Figma "IPD534 Street Interface" › Color schemes
-     (EASY/ombre, MEDIUM/ombre, HARD/ombre): 3 stops, top → bottom. */
+  /* Figma "IPD534 Street Interface" › Color schemes (EASY/ombre, MEDIUM/ombre,
+     HARD/ombre): 3 stops, top → bottom. Now used as category colors. */
   --easy-1: #f0d11f;
   --easy-2: #f59d21;
   --easy-3: #ea7d1e;
@@ -29,13 +29,15 @@
   --hard-1: #c29fff;
   --hard-2: #9992fd;
   --hard-3: #726aea;
-  --ombre-easy: linear-gradient(180deg, var(--easy-1) 0%, var(--easy-2) 50%, var(--easy-3) 100%);
-  --ombre-medium: linear-gradient(180deg, var(--medium-1) 0%, var(--medium-2) 50%, var(--medium-3) 100%);
-  --ombre-hard: linear-gradient(180deg, var(--hard-1) 0%, var(--hard-2) 50%, var(--hard-3) 100%);
-  /* Chip accents on the dark background use each ombré's lightest stop. */
-  --easy: var(--easy-1);
-  --medium: var(--medium-1);
-  --hard: var(--hard-1);
+  --ombre-easy: linear-gradient(180deg, var(--easy-1) 0%, var(--easy-2) 50%, var(--easy-3) 100%); /* loading message */
+  /* Four companion ombrés in the same style (3 stops, light top → deeper
+     bottom), spaced around the color wheel between the Figma three. Every
+     bottom stop keeps ≥4.5:1 contrast with --ink question text. */
+  --leaf-1: #d6f35e;  --leaf-2: #9be05c;  --leaf-3: #4fbf6c;   /* lime → green */
+  --mint-1: #9cf6d2;  --mint-2: #56dcb3;  --mint-3: #22b48f;   /* mint → teal */
+  --plum-1: #f3a8ff;  --plum-2: #dc80f0;  --plum-3: #b85ad8;   /* orchid → plum */
+  --coral-1: #ffb0c8; --coral-2: #ff84a6; --coral-3: #f2587f;  /* pink → coral */
+  /* Which category uses which family: the [data-cat] rules in the GAME section. */
   --route-21: #36a3ff;
   --route-42: #b38bff;
 
@@ -465,37 +467,21 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
 .streak.bump { animation: bump 0.5s ease; }
 @keyframes bump { 40% { transform: scale(1.25); } }
 
-/* ---------- Round meta + timer ---------- */
-.round-meta { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; }
-.round-meta-left { display: flex; flex-direction: column; gap: 1.4cqw; }
-.diff-chip {
-  --c: var(--easy);
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 1.6cqw;
-  padding: 1cqw 2.4cqw 1cqw 1.8cqw;
-  border-radius: 99px;
-  border: 0.4cqw solid var(--c);
-  color: var(--c);
-  font-weight: 900;
-  font-stretch: 115%;
-  font-size: 3.4cqw;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.diff-chip[data-diff="medium"] { --c: var(--medium); }
-.diff-chip[data-diff="hard"] { --c: var(--hard); }
-/* Filled-dot count (1/2/3) carries difficulty without relying on color. */
-.diff-dots { display: inline-flex; gap: 0.7cqw; }
-.diff-dots i { width: 1.8cqw; height: 1.8cqw; border-radius: 50%; border: 0.35cqw solid var(--c); }
-.diff-chip[data-diff="easy"] .diff-dots i:nth-child(-n+1),
-.diff-chip[data-diff="medium"] .diff-dots i:nth-child(-n+2),
-.diff-chip[data-diff="hard"] .diff-dots i:nth-child(-n+3) { background: var(--c); }
-.round-info { display: flex; gap: 2.4cqw; font-size: 2.8cqw; color: var(--muted); font-weight: 600; }
-.worth { color: var(--paper); }
+/* ---------- Category colors + answer timer ---------- */
+/* Category color families: each [data-cat] gets its 3 stops as --c1/--c2/--c3,
+   used as the question card's ombré. The category name is also written at the
+   top of the card, so color is never the only cue. */
+[data-cat="general"] { --c1: var(--easy-1); --c2: var(--easy-2); --c3: var(--easy-3); }
+[data-cat="geography"] { --c1: var(--medium-1); --c2: var(--medium-2); --c3: var(--medium-3); }
+[data-cat="history"] { --c1: var(--hard-1); --c2: var(--hard-2); --c3: var(--hard-3); }
+[data-cat="science"] { --c1: var(--leaf-1); --c2: var(--leaf-2); --c3: var(--leaf-3); }
+[data-cat="animals"] { --c1: var(--mint-1); --c2: var(--mint-2); --c3: var(--mint-3); }
+[data-cat="computers"] { --c1: var(--plum-1); --c2: var(--plum-2); --c3: var(--plum-3); }
+[data-cat="math"] { --c1: var(--coral-1); --c2: var(--coral-2); --c3: var(--coral-3); }
 
-.timer { position: relative; width: 17cqw; height: 17cqw; flex: none; }
+/* The 10-second answer ring sits in the top bar, between the bus countdown
+   and the score. */
+.timer { position: relative; width: 17cqw; height: 17cqw; flex: none; align-self: center; }
 .timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .timer circle { fill: none; stroke-width: 8; }
 .timer-track { stroke: var(--ink-3); }
@@ -534,12 +520,11 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
   gap: 1.6cqh;
   padding: 3cqw 4cqw;
   border-radius: calc(var(--radius) * 1.6);
-  background: var(--ombre-easy);
-  /* Ombrés are light, so the card switches to dark text (≥4.4:1 on every stop). */
+  /* The question's category ombré ([data-cat] sets --c1..--c3). */
+  background: linear-gradient(180deg, var(--c1) 0%, var(--c2) 50%, var(--c3) 100%);
+  /* Ombrés are light, so the card uses dark text (≥4.4:1 on every stop). */
   color: var(--ink);
 }
-.question-card[data-diff="medium"] { background: var(--ombre-medium); }
-.question-card[data-diff="hard"] { background: var(--ombre-hard); }
 .category { margin: 0; font-size: 2.6cqw; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); opacity: 0.72; }
 .question { margin: 0; font-size: 5.6cqw; line-height: 1.2; font-weight: 800; font-stretch: 105%; text-wrap: balance; overflow-wrap: anywhere; }
 .question.long { font-size: 4.6cqw; }
@@ -557,7 +542,7 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
 .answer {
   position: relative;
   width: 100%;
-  min-height: 15cqh;
+  min-height: 18cqh; /* tall targets: easier to hover with a hand */
   height: 100%;
   display: flex;
   align-items: center;
@@ -641,13 +626,11 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
 .next-bar i { display: block; height: 100%; width: 100%; background: var(--ink); transform-origin: left; }
 
 /* During reveal only the correct answer and the rider's pick stay on screen,
-   and the (frozen, dimmed) answer ring is hidden — the explanation card has
-   its own countdown — making room for the explanation. Sized so every
-   question in data/questions.json fits with a 40-word explanation. */
-.game.revealing .timer { display: none; }
+   making room for the explanation (the answer ring stays in the top bar,
+   frozen and dimmed). Sized so every question in the pool fits with a
+   40-word explanation. */
 .game.revealing .question-card { flex: 1 1 auto; padding-block: 2cqw; gap: 1cqh; }
 .game.revealing .question { font-size: 4.4cqw; }
-.game.revealing .category { display: none; } /* already seen on the question screen */
 .game.revealing .question.long { font-size: 3.9cqw; }
 .game.revealing .question.xlong { font-size: 3.5cqw; }
 .game.revealing .answers li:has(> .is-dim) { display: none; }
@@ -750,6 +733,76 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
   animation: rise 0.3s ease-out;
 }
 .toast-icon svg { width: 5cqw; height: 5cqw; fill: currentColor; display: block; }
+
+/* ==========================================================================
+   HAND-POSE CURSOR (js/pointer.js)
+   Always shown while a hand is tracked. While hovering an answer, a progress
+   ring fills around the dot and a 3·2·1 count sits beside it.
+   ========================================================================== */
+.hand-cursor {
+  --p: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 40; /* above overlays, so it can later drive their buttons too */
+  pointer-events: none;
+  will-change: transform;
+}
+.hand-cursor-ring {
+  position: absolute;
+  width: 8cqw;
+  height: 8cqw;
+  left: -4cqw;
+  top: -4cqw;
+  border-radius: 50%;
+  /* progress ring (amber) over a faint track; visible on dark and on ombré */
+  background: conic-gradient(var(--amber) calc(var(--p) * 1turn), rgba(244, 241, 232, 0.35) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1cqw), #000 calc(100% - 0.9cqw));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1cqw), #000 calc(100% - 0.9cqw));
+  filter: drop-shadow(0 0 0.4cqw rgba(5, 10, 20, 0.9));
+}
+.hand-cursor::after { /* center dot marking exactly where the fingertip is */
+  content: '';
+  position: absolute;
+  width: 2cqw;
+  height: 2cqw;
+  left: -1cqw;
+  top: -1cqw;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 0 0 0.4cqw var(--ink);
+}
+.hand-cursor-count {
+  position: absolute;
+  left: 5cqw;
+  top: -9cqw;
+  display: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 7cqw;
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 0.6cqw var(--ink), 0 0 0.3cqw var(--ink);
+}
+.hand-cursor.is-dwelling .hand-cursor-count { display: block; }
+
+/* The answer being hovered: amber outline + a fill that tracks the dwell. */
+.answer.is-dwelling {
+  border-color: var(--amber);
+  background:
+    linear-gradient(90deg, rgba(255, 184, 28, 0.32) calc(var(--p, 0) * 100%), transparent 0),
+    var(--ink-2);
+}
+
+/* "That's not my bus" / "Play again" being hovered: white outline + a lighter
+   fill sweeping across the amber button as the dwell completes. */
+.btn.is-dwelling {
+  outline: 0.6cqw solid var(--paper);
+  outline-offset: 0.5cqw;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.5) calc(var(--p, 0) * 100%), transparent 0),
+    var(--amber);
+}
 
 /* Debug panel (?debug) */
 .debug {

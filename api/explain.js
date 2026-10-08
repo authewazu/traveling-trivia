@@ -5,9 +5,9 @@ import Anthropic from '@anthropic-ai/sdk';
 // GET /api/explain?id=<question id>  →  { "correct": "<one sentence>" }
 //
 // Runs server-side so ANTHROPIC_API_KEY never reaches the browser. The kiosk
-// sends only a question id; the question itself comes from our own
-// data/questions.json (bundled via vercel.json "includeFiles"), so this
-// endpoint can only ever explain questions in the bank.
+// sends only a question id; the question itself comes from our own question
+// file (bundled via vercel.json "includeFiles"), so this endpoint can only
+// ever explain questions in the bank.
 //
 // Caching, keyed by question: successful answers are served with a long
 // CDN cache header, so Vercel's edge answers repeat ids without re-running
@@ -38,11 +38,20 @@ const OUTPUT_FORMAT = {
 
 const MAX_WORDS = 40; // hard ceiling the kiosk layout is tested against
 
+// Must match QUESTIONS_URL in js/config.js and includeFiles in vercel.json.
+const QUESTIONS_FILE = join('data', 'easy_trivia_pool_vetted.json');
+
 let bank = null;
 function questionById(id) {
   if (!bank) {
-    const { questions } = JSON.parse(readFileSync(join(process.cwd(), 'data', 'questions.json'), 'utf8'));
-    bank = new Map(questions.map((q) => [q.id, q]));
+    const { questions } = JSON.parse(readFileSync(join(process.cwd(), QUESTIONS_FILE), 'utf8'));
+    // OpenTDB schema → the fields the prompt uses.
+    bank = new Map(questions.map((q) => [String(q.id), {
+      category: q.category,
+      question: q.question,
+      correct: q.correct_answer,
+      incorrect: q.incorrect_answers,
+    }]));
   }
   return bank.get(id);
 }
@@ -70,7 +79,7 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return fail(405, 'method_not_allowed');
 
   const id = typeof req.query.id === 'string' ? req.query.id : '';
-  const q = /^[0-9a-f]{10}$/.test(id) ? questionById(id) : null;
+  const q = /^\d{1,6}$/.test(id) ? questionById(id) : null;
   if (!q) return fail(404, 'unknown_question_id');
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     // Set it in Vercel → Settings → Environment Variables, then redeploy.

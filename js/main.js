@@ -1,4 +1,4 @@
-import { TIMING, BUS, POINTS_PER_CORRECT, CATEGORIES, DEBUG, IDLE_UNANSWERED_ROUNDS, POINTER } from './config.js';
+import { TIMING, BUS, CATEGORIES, DEBUG, IDLE_UNANSWERED_ROUNDS, POINTER } from './config.js';
 import { createDwellPointer, videoToScreen } from './pointer.js';
 import { startHandTracking } from './hand.js';
 import { pickDifficulty } from './difficulty.js';
@@ -9,7 +9,33 @@ import { BusFeed } from './bus.js';
 import * as board from './leaderboard.js';
 import * as sound from './sound.js';
 
-const $ = (id) => document.getElementById(id);
+// Element lookup that survives an out-of-sync deploy. If index.html is older
+// than this script (an element the code needs is missing), the game keeps
+// running on a stand-in element instead of freezing, and a red banner names
+// the problem so it's caught immediately.
+const missingIds = new Set();
+function $(id) {
+  const el = document.getElementById(id);
+  if (el) return el;
+  if (!missingIds.has(id)) {
+    missingIds.add(id);
+    console.error(`[deploy] index.html has no #${id}; it is older than js/main.js.`);
+    queueMicrotask(showOutOfSyncBanner);
+  }
+  return document.createElement('div');
+}
+function showOutOfSyncBanner() {
+  let bar = document.getElementById('deploy-warning');
+  if (!bar) {
+    bar = Object.assign(document.createElement('div'), { id: 'deploy-warning', role: 'alert' });
+    Object.assign(bar.style, {
+      position: 'fixed', left: '0', right: '0', top: '0', zIndex: '1000', padding: '8px 12px',
+      background: '#b00020', color: '#fff', font: '600 14px/1.3 system-ui, sans-serif',
+    });
+    document.body.append(bar);
+  }
+  bar.textContent = `Site files out of sync: index.html is older than the JavaScript (missing #${[...missingIds].join(', #')}). Upload the latest index.html and css/styles.css.`;
+}
 const now = () => Date.now();
 
 const LETTERS = 'ABCD';
@@ -19,7 +45,7 @@ const CLOCK_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 1
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
-const questionBank = loadQuestionBank(); // data/questions.json, loaded once
+const questionBank = loadQuestionBank(); // QUESTIONS_URL (the vetted pool), loaded once
 const bus = new BusFeed(onBusUpdate);
 
 // Rounds dealt ahead of the one on screen, so each upcoming question's AI
@@ -334,14 +360,12 @@ function categoryOf(q) {
 
 function renderRound() {
   const s = session;
-  const { q, number } = s.round;
-  // The category chip and the question card share the category's color family.
+  const { q } = s.round;
+  // The question card's background is the category's ombré; its name sits
+  // small at the top of the card so the color is never the only cue.
   const cat = categoryOf(q);
-  $('cat-chip').dataset.cat = cat.key;
   $('question-card').dataset.cat = cat.key;
-  $('cat-label').textContent = cat.label;
-  $('round-num').textContent = `Round ${number}`;
-  $('worth').textContent = `Worth ${fmt(POINTS_PER_CORRECT * multiplierFor(s.streak))} pts`;
+  $('category').textContent = cat.label;
   const qEl = $('question');
   qEl.textContent = q.text;
   // Step the type down for long text so the longest questions in the bank
@@ -732,7 +756,6 @@ $('sound-toggle').addEventListener('click', () => {
   sound.play('tap');
 });
 
-board.seedIfNeeded();
 renderSoundToggle();
 goIdle();
 bus.setPollInterval(TIMING.busPollIdleMs);
