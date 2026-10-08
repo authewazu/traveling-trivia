@@ -34,12 +34,12 @@ export const IDLE_UNANSWERED_ROUNDS = 3;
 // Hover-to-select (hand pose). Positions come from the camera (js/hand.js) or,
 // with ?input=mouse, the mouse, through window.TravelingTrivia.pointer.
 // Targets: the answer bubbles, "That's not my bus", and "Play again".
-//   (default)     camera hand tracking + tapping
+//   (default)     tapping only (no camera, no cursor)
+//   ?input=hand   camera hand tracking + tapping (on hold: not yet working on the kiosk iPad)
 //   ?input=mouse  the mouse stands in for the hand (no camera)
-//   ?input=touch  tapping only (no camera, no cursor)
 const DWELL_SECONDS = 2;
 export const POINTER = {
-  input: params.get('input') || 'hand',
+  input: params.get('input') || 'touch',
   dwellSeconds: DWELL_SECONDS, // what the countdown beside the cursor shows (2 → 1)
   dwellMs: s(DWELL_SECONDS), // hover this long on a target to select it
   // 'answers': the four answer bubbles are the targets (2×2 = quadrants of the

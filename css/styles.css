@@ -64,7 +64,7 @@ html, body {
 
 body {
   display: grid;
-  place-items: center;
+  place-items: start center; /* pinned to the top: the bottom of the screen is covered */
   overflow: hidden;
   touch-action: manipulation;
   -webkit-user-select: none;
@@ -81,13 +81,19 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
   clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-/* Target device: 12.9" iPad Pro, portrait (1024×1366 CSS px; ~1024×1290
-   in Safari with its toolbars). Fills the screen edge to edge there;
-   letterboxes to a portrait column on a laptop. */
+/* Target device: 12.9" iPad Pro, portrait (1024×1366 CSS px; ~1024×1292
+   in Safari with its toolbars). On the kiosk the bottom of the screen is
+   covered: only the top down to about the 3rd leaderboard row (1,102px of
+   1,292) is visible, so every page lives in the top part of the screen.
+   --covered-bottom is that hidden strip (190px measured + 10px margin).
+   The game frame keeps the proportions every layout was checked at
+   (1024×1292, aspect 0.7926) and scales down as a whole to fit the visible
+   height, so nothing is pushed under the cover; it's centered side to side. */
+:root { --covered-bottom: 200px; --frame-aspect: 0.7926; }
 .app {
   position: relative;
-  width: min(100vw, 82dvh);
-  height: 100dvh;
+  height: calc(100dvh - var(--covered-bottom));
+  width: min(100vw, calc((100dvh - var(--covered-bottom)) * var(--frame-aspect)));
   container-type: size;
   background:
     radial-gradient(120% 60% at 50% -10%, #1a2c52 0%, transparent 60%),
@@ -808,7 +814,7 @@ button:focus-visible { outline: 0.6cqw solid var(--amber); outline-offset: 0.5cq
 .debug {
   position: fixed;
   left: 8px;
-  bottom: 8px;
+  bottom: calc(var(--covered-bottom) + 8px); /* above the covered strip */
   z-index: 100;
   display: grid;
   gap: 4px;

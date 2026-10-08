@@ -47,6 +47,10 @@ Full error details are under the project's Logs in Vercel.
 
 Target device: **12.9" iPad Pro, portrait** (1024×1366 CSS px).
 
+**Covered bottom of the screen:** on the kiosk only the top of the screen is visible (down to about the 3rd leaderboard row, 1,102px of Safari's 1,292). Every page therefore lives in the top part: the game frame is pinned to the top and scaled down as a whole (same proportions, centered side to side) so nothing sits under the cover. The hidden strip is one value, `--covered-bottom` (200px) at the top of `css/styles.css`; change it if the enclosure changes, or set it to `0px` for full-screen use.
+
+**Input:** tapping only by default. Hand tracking is on hold (`?input=hand` turns it on for testing).
+
 - In Safari, use Share → Add to Home Screen, then launch the app from the icon. It runs full screen with no browser chrome.
 - Turn on Settings → Accessibility → Guided Access, then triple-click to lock the iPad to the app.
 - Set Settings → Display → Auto-Lock to Never.
@@ -139,7 +143,7 @@ Behavior details (tunable in `POINTER`, js/config.js):
 - **Resting hand**: when a new question appears, the answer the hand is already on doesn't count until the hand leaves it, so a hand left on B doesn't auto-pick B again.
 - **Resting hand, everywhere**: the same rule applies whenever targets change, so a hand that happens to be where "That's not my bus" pops up doesn't dismiss the banner by accident.
 - **Nothing else**: hovering does nothing during the reveal, loading, or 3·2·1 resume. "Tap to play" and "Done" are tap-only for now.
-- **Input modes**: camera hand tracking is on by default. `?input=mouse` makes the mouse stand in for the hand (no camera); `?input=touch` turns hand input off (tapping only).
+- **Input modes**: tapping only by default (no camera prompt, no cursor). `?input=hand` turns on camera hand tracking (on hold: it didn't pick up hands on the kiosk iPad yet); `?input=mouse` makes the mouse stand in for the hand.
 
 ## Refreshing or curating the questions
 
