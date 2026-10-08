@@ -1,4 +1,6 @@
-import { TIMING, BUS, BASE_POINTS, DEBUG, IDLE_UNANSWERED_ROUNDS } from './config.js';
+import { TIMING, BUS, POINTS_PER_CORRECT, CATEGORIES, DEBUG, IDLE_UNANSWERED_ROUNDS, POINTER } from './config.js';
+import { createDwellPointer, videoToScreen } from './pointer.js';
+import { startHandTracking } from './hand.js';
 import { pickDifficulty } from './difficulty.js';
 import { scoreRound, multiplierFor, fmt } from './scoring.js';
 import { loadQuestionBank } from './questions.js';
@@ -10,7 +12,6 @@ import * as sound from './sound.js';
 const $ = (id) => document.getElementById(id);
 const now = () => Date.now();
 
-const DIFF_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 const LETTERS = 'ABCD';
 const BUS_SVG = document.querySelector('.stop-glyph svg').outerHTML;
 const CLOCK_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.4 3.5 2.1-1 1.7-4.5-2.7V6h2v6.4Z"/></svg>';
@@ -148,7 +149,7 @@ function showIdleNotice() {
 // max-3-in-a-row guardrail still holds.
 function dealInto(target, count) {
   while (target.queue.length < count) {
-    const difficulty = pickDifficulty(target.history);
+    const difficulty = pickDifficulty(target.history, questionBank.availableDifficulties());
     target.history.push(difficulty);
     const q = questionBank.take(difficulty);
     target.queue.push({ difficulty, q, explanation: requestExplanation(q) });
@@ -302,7 +303,7 @@ function answer(i) {
   const r = s.round;
   const picked = i === null ? null : r.q.answers[i];
   const correct = picked === r.q.correct;
-  const { points, multiplier, nextStreak } = scoreRound({ difficulty: r.difficulty, correct, streak: s.streak });
+  const { points, multiplier, nextStreak } = scoreRound({ correct, streak: s.streak });
   s.streak = nextStreak;
   s.bestStreak = Math.max(s.bestStreak, s.streak);
   s.score += points;
@@ -327,15 +328,20 @@ function answer(i) {
 // ---------------------------------------------------------------------------
 const answerButtons = [...document.querySelectorAll('.answer')];
 
+function categoryOf(q) {
+  return CATEGORIES[q.categoryId] ?? { key: 'general', label: q.category || 'Trivia' };
+}
+
 function renderRound() {
   const s = session;
-  const { q, difficulty, number } = s.round;
-  $('diff-chip').dataset.diff = difficulty;
-  $('question-card').dataset.diff = difficulty;
-  $('diff-label').textContent = DIFF_LABEL[difficulty];
+  const { q, number } = s.round;
+  // The category chip and the question card share the category's color family.
+  const cat = categoryOf(q);
+  $('cat-chip').dataset.cat = cat.key;
+  $('question-card').dataset.cat = cat.key;
+  $('cat-label').textContent = cat.label;
   $('round-num').textContent = `Round ${number}`;
-  $('worth').textContent = `Worth ${fmt(BASE_POINTS[difficulty] * multiplierFor(s.streak))} pts`;
-  $('category').textContent = q.category;
+  $('worth').textContent = `Worth ${fmt(POINTS_PER_CORRECT * multiplierFor(s.streak))} pts`;
   const qEl = $('question');
   qEl.textContent = q.text;
   // Step the type down for long text so the longest questions in the bank
@@ -360,7 +366,7 @@ function renderRound() {
   $('timer').classList.remove('hurry', 'done');
   renderScore();
   renderTimer();
-  announce(`${DIFF_LABEL[difficulty]} question. ${q.text}`);
+  announce(`${cat.label} question. ${q.text}`);
 }
 
 function renderReveal() {
@@ -492,8 +498,9 @@ function pauseGame() {
 }
 function resumeGame() {
   if (pausedRemaining === null) return;
-  // Don't hand the rider back a question with 1 second left on it.
-  const min = phase === 'question' ? TIMING.answerMs / 3 : 0;
+  // Don't hand the rider back a question with 1 second left on it: they need
+  // time to re-aim and complete a 3-second hover (half the 8s round = 4s).
+  const min = phase === 'question' ? Math.max(TIMING.answerMs / 2, (POINTER.dwellMs * 4) / 3) : 0;
   const remaining = Math.max(pausedRemaining, min);
   phaseEndsAt = now() + remaining;
   pausedRemaining = null;
@@ -578,6 +585,8 @@ let lastIdleRender = 0;
 
 function tick() {
   const t = now();
+  // What hovering can select right now (see pointerContext).
+  pointer.setContext(pointerContext());
 
   if (phase === 'idle') {
     if (t - lastIdleRender > 5000) {
@@ -587,7 +596,8 @@ function tick() {
     return;
   }
 
-  if (phase === 'loading') return; // screenTimer starts the session
+  // Timed screens with no session: screenTimer moves them on.
+  if (phase === 'loading' || phase === 'timeout') return;
 
   if (phase === 'ended') {
     if ((endScreenUntil && t >= endScreenUntil) || t - lastInteraction > TIMING.endScreenIdleMs) goIdle();
@@ -636,6 +646,81 @@ $('answers').addEventListener('click', (e) => {
   if (btn && !btn.disabled) answer(Number(btn.dataset.i));
 });
 
+// ---------------------------------------------------------------------------
+// Hand-pose hover selection (js/pointer.js)
+// ---------------------------------------------------------------------------
+// What hovering can select right now:
+//   'answers' — a question is up and nothing covers it
+//   'bus'     — the bus banner's "That's not my bus" button
+//   'end'     — "Play again" on the end screen (shown only when the 6-min cap hit)
+function pointerContext() {
+  if (overlay === 'bus') return 'bus';
+  if (phase === 'question' && !overlay) return 'answers';
+  if (phase === 'ended' && !$('play-again').hidden) return 'end';
+  return null;
+}
+
+// Targets for a context, as rects relative to the app frame (like the cursor).
+function relativeRect(el, app) {
+  const r = el.getBoundingClientRect();
+  return { left: r.left - app.left, top: r.top - app.top, right: r.right - app.left, bottom: r.bottom - app.top };
+}
+
+function pointerTargets(context) {
+  const app = $('app').getBoundingClientRect();
+  if (context === 'bus') return [{ el: $('not-my-bus'), rect: relativeRect($('not-my-bus'), app) }];
+  if (context === 'end') return [{ el: $('play-again'), rect: relativeRect($('play-again'), app) }];
+  if (context !== 'answers') return [];
+  // Answers: the four bubbles (2×2 grid), or with ?zones=screen the four
+  // quadrants of the whole screen (A top-left, B top-right, C bottom-left,
+  // D bottom-right — the same arrangement as the bubbles).
+  if (POINTER.zones === 'screen') {
+    const w = app.width / 2, h = app.height / 2;
+    return answerButtons.map((el, i) => {
+      const left = (i % 2) * w, top = Math.floor(i / 2) * h;
+      return { el, rect: { left, top, right: left + w, bottom: top + h } };
+    });
+  }
+  return answerButtons
+    .filter((el) => el.offsetParent) // hidden answers can't be targets
+    .map((el) => ({ el, rect: relativeRect(el, app) }));
+}
+
+const pointer = createDwellPointer({
+  app: $('app'),
+  cursor: $('hand-cursor'),
+  countEl: $('hand-cursor-count'),
+  getZones: pointerTargets,
+  // A completed hover "presses" the target exactly like a tap would, so the
+  // existing click handlers (answer, not-my-bus, play-again) do the rest.
+  onSelect: (el) => {
+    if (!el || el.disabled || el.hidden) return;
+    if (el.classList.contains('answer')) sound.play('tap'); // buttons play their own
+    el.click();
+  },
+  onActivity: () => (lastInteraction = now()), // a moving hand counts as someone there
+});
+
+// Input sources drive the cursor through this (see README → Hand-pose input):
+//   TravelingTrivia.pointer.update(x, y)  screen-normalized 0–1, selfie-mirrored
+//   TravelingTrivia.pointer.lost()        no hand in view
+//   TravelingTrivia.pointer.videoToScreen(keypoint, videoEl, options) → {x, y}
+window.TravelingTrivia = { pointer: { update: pointer.update, lost: pointer.lost, videoToScreen } };
+
+// Default: the front camera + ml5 handPose (js/hand.js). If the camera is
+// unavailable or denied, the game simply stays tap-only.
+let handStats = null;
+if (POINTER.input === 'hand') handStats = startHandTracking(window.TravelingTrivia.pointer);
+
+// ?input=mouse: the mouse stands in for the hand, for testing without a camera.
+if (POINTER.input === 'mouse') {
+  document.addEventListener('pointermove', (e) => {
+    const r = $('app').getBoundingClientRect();
+    pointer.update((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+  });
+  document.documentElement.addEventListener('pointerleave', () => pointer.lost());
+}
+
 function renderSoundToggle() {
   const on = !sound.isMuted();
   $('sound-toggle').setAttribute('aria-pressed', String(on));
@@ -656,6 +741,6 @@ setInterval(tick, 200);
 
 if (DEBUG) {
   import('./debug.js').then((m) =>
-    m.mountDebug({ bus, getSession: () => session, getBank: () => questionBank })
+    m.mountDebug({ bus, getSession: () => session, getBank: () => questionBank, getHand: () => handStats })
   );
 }

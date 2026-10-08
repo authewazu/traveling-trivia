@@ -4,8 +4,8 @@ import { TIMING } from './config.js';
 // feed so the arrival banner, earlier-ETA pop-up, and 6-minute cap can be
 // exercised without waiting for a real bus. Combine with ?speed=6 to shrink
 // every timer.
-export function mountDebug({ bus, getSession, getBank }) {
-  window.__trivia = { bus, getSession, getBank }; // for console poking
+export function mountDebug({ bus, getSession, getBank, getHand }) {
+  window.__trivia = { bus, getSession, getBank, getHand }; // for console poking
   let n = 0;
   const sim = () => (bus.sim && !bus.sim.down ? bus.sim : (bus.sim = { arrivals: [] }));
   // The bus the session is actually counting down to (skips dismissed/passed ones).
@@ -36,6 +36,9 @@ export function mountDebug({ bus, getSession, getBank }) {
       const s = getSession();
       if (s) Object.assign(s, { capAt: Date.now() + 3000, deadline: Date.now() + 3000, source: 'cap', tracked: null });
     },
+    // Calibration: clear the fingertip range, then reach to all four answer
+    // positions; the "range" line becomes the HAND.region to use.
+    'Hand: reset range': () => { const h = getHand?.(); if (h) h.seen = null; },
   };
 
   const panel = document.createElement('div');
@@ -61,6 +64,16 @@ export function mountDebug({ bus, getSession, getBank }) {
     if (s) {
       lines.push(`source: ${s.source}`, `deadline in ${Math.round((s.deadline - Date.now()) / 1000)}s`,
         `diffs: ${s.history.map((d) => d[0]).join('')}`);
+    }
+    const h = getHand?.();
+    if (h) {
+      const f = (v) => v.toFixed(2);
+      lines.push(
+        `hand: ${h.status}${h.error ? ` (${h.error})` : ''}`,
+        `  camera ${h.video || '–'}, ${h.fps} fps, conf ${h.confidence}`,
+        `  tip ${h.raw ? `${f(h.raw.x)}, ${f(h.raw.y)}` : 'no hand'}`,
+        `  range x ${h.seen ? `${f(h.seen.x0)}–${f(h.seen.x1)}` : '–'}, y ${h.seen ? `${f(h.seen.y0)}–${f(h.seen.y1)}` : '–'}`,
+      );
     }
     out.textContent = lines.join('\n');
   }, 500);

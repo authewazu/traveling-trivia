@@ -31,7 +31,7 @@ Vercel installs `@anthropic-ai/sdk` for `api/explain.js` from `package.json`; no
 
 If the API key is missing or a call is slow, the game still runs and shows the fallback line ("Here's a fact worth looking into!").
 
-To check the AI call after deploying, open `https://<your-site>/api/explain?id=52ba3d2781` (the Polaris question; any `id` from `data/questions.json` works) in a browser. It should return `{"correct": "..."}`. If it fails, the reply includes a short `reason`:
+To check the AI call after deploying, open `https://<your-site>/api/explain?id=6` (the "closest planet to the sun" question; any `id` from `data/easy_trivia_pool_vetted.json` works) in a browser. It should return `{"correct": "..."}`. If it fails, the reply includes a short `reason`:
 
 | `reason` | Meaning / fix |
 |---|---|
@@ -60,9 +60,12 @@ css/styles.css        design tokens in :root; container-query sizing (portrait 3
 js/config.js          every timing/scoring constant
 js/main.js            state machine: session, rounds, bus alert, idle reset
 js/difficulty.js      even-odds picker, max 3 in a row
-js/scoring.js         base points × streak multiplier
-js/questions.js       question bank: loads data/questions.json, deals without repeats, fallback bank
-data/questions.json   curated OpenTDB snapshot (built by dev/fetch_questions.py)
+js/scoring.js         1 point × streak multiplier
+js/questions.js       question bank: loads the vetted pool, deals without repeats, fallback bank
+js/pointer.js         hand-pose hover-to-select: cursor, 2s dwell, 2·1 countdown
+js/hand.js            camera wrapper: front camera → ml5 handPose → fingertip → One Euro filter
+data/easy_trivia_pool_vetted.json  the question database (hand-vetted Easy OpenTDB questions)
+data/questions.json   older full OpenTDB snapshot (no longer used by the site)
 js/explain.js         client for /api/explain: device cache, 5s deadline, fallback line
 js/bus.js             polls /api/bus, converts to local-clock arrival times
 js/leaderboard.js     daily totals in localStorage, seeded placeholders
@@ -78,7 +81,9 @@ dev/fetch_questions.py  rebuilds data/questions.json from OpenTDB
 ## Behavior decisions (spec → code)
 
 - **Loading screen**: "Tap to play" and "Play again" show a 4s screen with the message "Don't let the tech do all your thinking for you." (BBH Hegarty, caps, 16pt) and the course disclaimer. Meanwhile the first 3 rounds are dealt and their explanations start generating; during play, 3 rounds always stay queued ahead. Queued rounds that never get played go back into the deck. The 6-minute cap starts after the loading screen.
-- **Round timing**: 15s to answer, then the answer + explanation shows for 7s. Both countdowns drain as continuous CSS animations and freeze while the game is paused.
+- **Scoring**: Every correct answer is worth 1 point × the streak multiplier: 1st correct in a row ×1.0 (1.0 pt), 2nd ×1.5 (1.5 pts), 3rd ×2.0 (2.0 pts), and so on, uncapped. A wrong answer or timeout scores 0 and resets the multiplier to ×1.0. Scores show to one decimal place.
+- **Categories**: Each question shows its category in a chip (name + color swatch) above the question, and the question card takes that category's ombré: General Knowledge (Figma EASY: yellow→orange), Geography (Figma MEDIUM: aqua→blue), History (Figma HARD: lavender→violet), Science & Nature (lime→green), Animals (mint→teal), Computers (orchid→plum), Mathematics (pink→coral). Colors live in `css/styles.css` (`[data-cat]` rules); labels in `CATEGORIES` (`js/config.js`).
+- **Round timing**: 10s to answer, then the answer + explanation shows for 7s. Both countdowns drain as continuous CSS animations and freeze while the game is paused.
 - **Session length**: min(next bus ETA, 6:00). The ETA comes from the soonest predicted arrival of either route at stop 6064.
 - **ETA updates**: A later ETA is ignored. An ETA at least 5s earlier shortens the countdown and shows a pop-up. The same rule applies when the API was down at start and comes back.
 - **API down**: Runs a 6:00 countdown with a dashed border, a "~" prefix, "No live bus data" and an "Estimate" tag. No bus banner in this mode.
@@ -87,14 +92,57 @@ dev/fetch_questions.py  rebuilds data/questions.json from OpenTDB
 - **Banner reaches 0**: The session ends ("Your bus is here!") and the kiosk returns to idle after 15s.
 - **Cap reached**: "Time's up!" with Play again.
 - **Round cut off mid-question**: Points are only awarded at answer time, so the round never counts. Rounds already in the explanation phase have counted.
-- **No answer in 15s**: Scores as wrong (0 points, multiplier reset).
-- **Idle**: 3 rounds in a row that time out with no answer (15+7+15+7+15 = 59s untouched) end the session with an "Idle session detected. Returning to title screen. Earned points have been saved." screen (BBH Hegarty, Figma MEDIUM/1). It returns to the title after 5s, or immediately on a tap. Answering any question resets the count. An untouched end screen returns to the title after 40s.
+- **No answer in 10s**: Scores as wrong (0 points, multiplier reset).
+- **Idle**: 3 rounds in a row that time out with no answer (10+7+10+7+10 = 44s) end the session with an "Idle session detected. Returning to title screen. Earned points have been saved." screen (BBH Hegarty, Figma MEDIUM/1). It returns to the title after 5s, or immediately on a tap. Answering any question resets the count. An untouched end screen returns to the title after 40s.
 - **Attribution**: The game screen shows "Trivia questions from Open Trivia Database (opentdb.com), licensed under CC BY-SA 4.0." in small light text above the bus countdown, as the OpenTDB license requires.
-- **Questions**: Served from `data/questions.json`, a snapshot of every multiple-choice OpenTDB question in the sanctioned categories (9 General Knowledge, 17 Science & Nature, 18 Computers, 19 Mathematics, 22 Geography, 23 History, 24 Politics, 27 Animals, 30 Gadgets). Each difficulty works like a shuffled deck: the iPad remembers which questions it has shown and doesn't repeat one until that difficulty's deck is used up. If the file can't load, a small built-in bank (same categories) covers it.
-- **AI explanations**: There is exactly one explanation per question (why the correct answer is right), shown whether the rider picked right or wrong. When a question is dealt (up to 3 rounds ahead), the kiosk requests `GET /api/explain?id=<question id>`. The function looks the question up in `data/questions.json` (so it can only explain bank questions) and asks Claude Haiku 4.5 for `{"correct": "<one sentence, under 20 words>"}` using structured JSON output and `max_tokens: 100`. Answers are cached by question in three places: the iPad's localStorage, Vercel's CDN (30 days, cleared on redeploy), and a warm function's memory. Anything that fails, times out (5s), or comes back empty shows the fallback line and is never cached.
+- **Questions**: Served from `data/easy_trivia_pool_vetted.json`: 426 hand-vetted Easy, multiple-choice OpenTDB questions (General Knowledge, Science & Nature, Computers, Mathematics, Geography, History, Animals). Rounds are only dealt from difficulties the pool contains, so every round is currently Easy (1 point, Easy ombré); adding vetted Medium/Hard questions to the file brings the random mix back automatically. Each difficulty works like a shuffled deck: the iPad remembers which questions it has shown and doesn't repeat one until the deck is used up. If the file can't load, a small built-in bank covers it.
+- **AI explanations**: There is exactly one explanation per question (why the correct answer is right), shown whether the rider picked right or wrong. When a question is dealt (up to 3 rounds ahead), the kiosk requests `GET /api/explain?id=<question id>`. The function looks the question up in `data/easy_trivia_pool_vetted.json` (so it can only explain bank questions) and asks Claude Haiku 4.5 for `{"correct": "<one sentence, under 20 words>"}` using structured JSON output and `max_tokens: 100`. Answers are cached in three places: the iPad's localStorage (keyed by question text), Vercel's CDN (30 days, cleared on redeploy), and a warm function's memory. Anything that fails, times out (5s), or comes back empty shows the fallback line and is never cached. If you switch question files, update `QUESTIONS_URL` (js/config.js), `QUESTIONS_FILE` (api/explain.js) and `includeFiles` (vercel.json) together.
+- **Hand-pose answers**: See "Hand-pose input" below. Hovering the cursor on an answer, "That's not my bus", or "Play again" for 2s selects it; tapping still works as a backup.
 - **Leaderboard**: Every answered round adds to today's total immediately. It shows the last 5 calendar days ranked by total, each labelled with its date ("Wed, Sep 23"); today also gets a TODAY badge. The 4 days before first launch get placeholder values (`LEADERBOARD.seed` in config).
 
+## Hand-pose input (ml5 handPose)
+
+Two modules, no p5.js:
+
+- **`js/hand.js` (the camera wrapper)** opens the iPad's front camera into an invisible `<video>` (the feed is never shown), loads ml5 1.4.0 from unpkg, and runs `handPose` (`maxHands: 1`, `modelType: 'full'`, `flipped: true`). handPose only finds hands (a palm detector + hand landmarks), never faces or bodies, and detections under 75% confidence are ignored. Each frame, the **index fingertip** is mapped from the camera frame onto the screen and smoothed with a One Euro filter, then handed to the hover engine.
+- **`js/pointer.js` (the hover engine)** draws the cursor (shown whenever a hand is tracked), finds the target under it, and selects after a 2s hover with a 2·1 count beside the cursor.
+
+Settings are in `HAND` (js/config.js):
+
+| Setting | What it does |
+|---|---|
+| `region` | Which part of the camera frame maps onto the whole screen. Default `x 0.2–0.8, y 0.25–0.75`, estimated for an iPad ~2 ft+ up, tilted ~10° upward, rider ~2 ft away. Calibrate on the kiosk (below). |
+| `filter` | Jitter control (One Euro). Lower `minCutoff` = steadier when still, more lag; higher `beta` = less lag when moving. Tested: holding still, cursor tremor is cut ~70%; a deliberate move arrives in ~0.1s. |
+| `minConfidence` | Ignore detections below this (0.75). |
+| `lostAfterMs` | Keep the cursor through detection dropouts shorter than this (400ms), so a flicker doesn't cancel a hover. |
+| `jumpReset` | A jump this far in one frame (another person's hand) snaps the cursor instead of gliding. |
+| `model.modelType` | `'full'` (steadier) or `'lite'` (faster). |
+
+**Mirroring happens once, in ml5** (`flipped: true`). `videoToScreen` assumes that and doesn't flip again; flipping in both places would make the cursor move opposite to the hand.
+
+**On the iPad:** the camera needs HTTPS (the Vercel URL; not `localhost` from another device) and permission. Safari asks the first time: tap **Allow**. If you denied it, re-enable under Settings → Apps → Safari → Camera, or the "aA" menu → Website Settings → Camera. If the camera is unavailable or denied, the game stays fully playable by tapping.
+
+**Calibrating `region` on the kiosk:** open `https://<your-site>/?debug`. The panel's `hand:` lines show status, camera size, frames per second, confidence, and the fingertip's raw position (`tip`, 0–1 in the camera frame). Tap **Hand: reset range**, then stand where a rider would and point comfortably at the top-left and bottom-right answers. The `range` line now shows the area your hand covered; copy it into `HAND.region` (with a little margin) so that comfortable reach covers the screen.
+
+Other input sources can drive the cursor through the same interface:
+
+```js
+TravelingTrivia.pointer.update(x, y);  // screen-normalized: 0..1 left→right, 0..1 top→bottom, selfie-mirrored
+TravelingTrivia.pointer.lost();        // no hand in view: hides the cursor, cancels any countdown
+```
+
+Behavior details (tunable in `POINTER`, js/config.js):
+
+- **Targets**: during a question, the four answer bubbles (the 2×2 grid); `?zones=screen` uses the four quadrants of the whole screen instead (A top-left … D bottom-right). On the bus banner, "That's not my bus". On the end screen (6-minute cap), "Play again". A completed hover presses the button exactly like a tap.
+- **Dwell**: 2s continuous hover selects. Slipping off for under 250ms doesn't restart it; moving onto another answer restarts it there.
+- **Resting hand**: when a new question appears, the answer the hand is already on doesn't count until the hand leaves it, so a hand left on B doesn't auto-pick B again.
+- **Resting hand, everywhere**: the same rule applies whenever targets change, so a hand that happens to be where "That's not my bus" pops up doesn't dismiss the banner by accident.
+- **Nothing else**: hovering does nothing during the reveal, loading, or 3·2·1 resume. "Tap to play" and "Done" are tap-only for now.
+- **Input modes**: camera hand tracking is on by default. `?input=mouse` makes the mouse stand in for the hand (no camera); `?input=touch` turns hand input off (tapping only).
+
 ## Refreshing or curating the questions
+
+The site uses `data/easy_trivia_pool_vetted.json`, which you curate by hand. The older script below builds a different, unvetted snapshot (`data/questions.json`) of all difficulties:
 
 ```
 python dev/fetch_questions.py
@@ -113,4 +161,4 @@ This rebuilds `data/questions.json` from OpenTDB (about 5 minutes, because OpenT
 | ETA update | Toast with info icon and text |
 | 3-2-1 beeps | Giant numerals |
 
-Difficulty is shown as a text label plus 1/2/3 filled dots, not just color. The Live and Estimate states differ in border style, text and "~", not only color. Screen-reader announcements go through an `aria-live` region, and `prefers-reduced-motion` is respected.
+A question's category is always written out on its chip, so the category colors are never the only cue. The Live and Estimate states differ in border style, text and "~", not only color. Screen-reader announcements go through an `aria-live` region, and `prefers-reduced-motion` is respected.

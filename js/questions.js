@@ -40,15 +40,32 @@ function shuffle(arr) {
   return a;
 }
 
-function makeQuestion({ id = null, category, text, correct, incorrect, difficulty, source }) {
-  return { id, category, text, correct, incorrect, difficulty, source, answers: shuffle([correct, ...incorrect]) };
+// OpenTDB category names → ids, for the built-in bank (which stores names).
+const CATEGORY_IDS = {
+  'General Knowledge': 9, 'Science & Nature': 17, 'Science: Computers': 18,
+  'Science: Mathematics': 19, 'Geography': 22, 'History': 23, 'Animals': 27,
+};
+
+function makeQuestion({ id = null, categoryId, category, text, correct, incorrect, difficulty, source }) {
+  return {
+    id,
+    categoryId: categoryId ?? CATEGORY_IDS[category] ?? null,
+    category,
+    text,
+    correct,
+    incorrect,
+    difficulty,
+    source,
+    answers: shuffle([correct, ...incorrect]),
+  };
 }
 
 // ---------------------------------------------------------------------------
 // "Seen" memory: ids already shown on this device, per difficulty, so no
 // question repeats until its difficulty's whole deck has been dealt.
 // ---------------------------------------------------------------------------
-const SEEN_KEY = 'tbs.seen.v1';
+const SEEN_KEY = 'tbs.seen.v2'; // v2: ids from the vetted pool (v1 held the old pool's ids)
+try { localStorage.removeItem('tbs.seen.v1'); } catch {}
 
 function loadSeen() {
   try {
@@ -65,9 +82,22 @@ function saveSeen(seen) {
 }
 
 // ---------------------------------------------------------------------------
-// Question bank: the curated snapshot in data/questions.json (built by
-// dev/fetch_questions.py; text is already entity-decoded).
+// Question bank: the hand-vetted pool in data/easy_trivia_pool_vetted.json
+// (OpenTDB schema, text already entity-decoded). Records are normalized to
+// { id, category, difficulty, question, correct, incorrect }.
 // ---------------------------------------------------------------------------
+function normalize(q) {
+  return {
+    id: String(q.id), // also the key api/explain looks the question up by
+    categoryId: q.category_id,
+    category: q.category,
+    difficulty: q.difficulty,
+    question: q.question,
+    correct: q.correct_answer,
+    incorrect: q.incorrect_answers,
+  };
+}
+
 class QuestionBank {
   constructor() {
     this.buckets = { easy: [], medium: [], hard: [] };
@@ -81,7 +111,7 @@ class QuestionBank {
       const res = await fetch(QUESTIONS_URL, { cache: 'no-cache' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const { questions } = await res.json();
-      for (const q of questions) this.buckets[q.difficulty]?.push(q);
+      for (const q of questions.map(normalize)) this.buckets[q.difficulty]?.push(q);
       this.status = 'ready';
     } catch (err) {
       console.warn('[questions] could not load question file, using fallback bank', err);
@@ -93,6 +123,14 @@ class QuestionBank {
   // Return a dealt-but-never-shown question to its deck.
   putBack(q) {
     if (q.id && this.seen[q.difficulty].delete(q.id)) saveSeen(this.seen);
+  }
+
+  // Difficulties rounds can be dealt from: the ones the loaded pool has
+  // questions for (only Easy with the vetted pool). Before the file loads, or
+  // if it fails, the built-in bank covers all three.
+  availableDifficulties() {
+    const loaded = DIFFICULTIES.filter((d) => this.buckets[d].length);
+    return loaded.length ? loaded : DIFFICULTIES;
   }
 
   // Unseen questions left in a difficulty's deck (for the debug panel).
@@ -115,6 +153,7 @@ class QuestionBank {
     saveSeen(this.seen);
     return makeQuestion({
       id: q.id, // also the key for the AI explanation (api/explain + caches)
+      categoryId: q.categoryId,
       category: q.category,
       text: q.question,
       correct: q.correct,

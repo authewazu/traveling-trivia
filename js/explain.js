@@ -4,15 +4,19 @@ import { EXPLAIN_ENDPOINT, TIMING } from './config.js';
 // explanation slot is never blank.
 export const FALLBACK_TEXT = "Here's a fact worth looking into!";
 
-// Device-side cache (id -> sentence). The kiosk is one shared iPad, so this
-// persists explanations across riders and days; the server's CDN cache
-// covers everything else.
-const CACHE_KEY = 'tbs.explain.v1';
+// Device-side cache, keyed by question text (not id: the vetted pool's ids are
+// row numbers that could point at a different question if the file is
+// regenerated). The kiosk is one shared iPad, so this persists explanations
+// across riders and days; the server's CDN cache covers everything else.
+const CACHE_KEY = 'tbs.explain.v2';
 let cache = {};
-try { cache = JSON.parse(localStorage.getItem(CACHE_KEY)) ?? {}; } catch {}
+try {
+  localStorage.removeItem('tbs.explain.v1'); // old pool, keyed by old ids
+  cache = JSON.parse(localStorage.getItem(CACHE_KEY)) ?? {};
+} catch {}
 
-function remember(id, text) {
-  cache[id] = text;
+function remember(key, text) {
+  cache[key] = text;
   try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch {}
 }
 
@@ -23,7 +27,7 @@ const fallback = () => ({ text: FALLBACK_TEXT, source: 'fallback' });
 // fallback line.
 export function requestExplanation(q) {
   if (!q.id) return Promise.resolve(fallback()); // built-in backup questions have no id
-  if (cache[q.id]) return Promise.resolve({ text: cache[q.id], source: 'cache' });
+  if (cache[q.text]) return Promise.resolve({ text: cache[q.text], source: 'cache' });
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMING.explainDeadlineMs);
@@ -32,7 +36,7 @@ export function requestExplanation(q) {
     .then((json) => {
       const text = typeof json.correct === 'string' ? json.correct.trim() : '';
       if (!text) return fallback();
-      remember(q.id, text);
+      remember(q.text, text);
       return { text, source: 'ai' };
     })
     .catch(() => fallback())
